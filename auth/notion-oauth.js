@@ -1,40 +1,40 @@
 /**
  * Notion OAuth2 Authentication Module
- * Provides OAuth2 integration for Notion API access
- * Keeps token-based auth as fallback option
+ * Uses server-side token exchange for security
+ * Client secret is stored on Cloudflare Worker, never exposed to extension
  */
 
 const NotionOAuth = {
     // OAuth2 Configuration
-    // NOTE: These should be configured in the Notion integration settings
+    // Client ID is loaded from config, Secret is on server only
     config: {
-        clientId: null, // Set by user in options
-        clientSecret: null, // Stored securely
-        redirectUri: null, // https://<extension-id>.chromiumapp.org/notion
+        // Client ID - set via config.js or environment
+        // To configure: Create config.js with NOTION_CLIENT_ID
+        clientId: typeof NOTION_CLIENT_ID !== 'undefined' ? NOTION_CLIENT_ID : null,
+
+        // Server endpoint for secure token exchange
+        // Update this after deploying your Cloudflare Worker
+        tokenServerEndpoint: typeof OAUTH_SERVER_URL !== 'undefined'
+            ? `${OAUTH_SERVER_URL}/api/notion/token`
+            : 'https://omniexporter-oauth.workers.dev/api/notion/token',
+
+        // Standard Notion endpoints
+        redirectUri: null, // Set dynamically
         authorizationEndpoint: 'https://api.notion.com/v1/oauth/authorize',
-        tokenEndpoint: 'https://api.notion.com/v1/oauth/token',
         scopes: ['read_content', 'insert_content']
     },
 
     /**
-     * Initialize OAuth configuration from storage
+     * Initialize OAuth configuration
+     * No need for user to enter Client ID/Secret anymore!
      */
     async init() {
         try {
-            const stored = await chrome.storage.local.get([
-                'notion_oauth_client_id',
-                'notion_oauth_client_secret',
-                'notion_oauth_access_token',
-                'notion_oauth_refresh_token',
-                'notion_oauth_token_expires',
-                'notion_oauth_state'
-            ]);
-
-            this.config.clientId = stored.notion_oauth_client_id;
-            this.config.clientSecret = stored.notion_oauth_client_secret;
+            // Set redirect URI dynamically from extension ID
             this.config.redirectUri = chrome.identity.getRedirectURL('notion');
 
             console.log('[NotionOAuth] Initialized with redirect:', this.config.redirectUri);
+            console.log('[NotionOAuth] Using server-side token exchange');
             return true;
         } catch (error) {
             console.error('[NotionOAuth] Init failed:', error);
@@ -44,17 +44,18 @@ const NotionOAuth = {
 
     /**
      * Check if OAuth is properly configured
+     * Now always returns true since Client ID is hardcoded
      */
     isConfigured() {
-        return !!(this.config.clientId && this.config.clientSecret);
+        return !!(this.config.clientId && this.config.tokenServerEndpoint);
     },
 
     /**
      * Start OAuth2 authorization flow
      */
     async authorize() {
-        if (!this.isConfigured()) {
-            throw new Error('OAuth not configured. Please set Client ID and Client Secret in settings.');
+        if (!this.config.clientId) {
+            throw new Error('OAuth not configured - Client ID missing');
         }
 
         const state = crypto?.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -124,18 +125,18 @@ const NotionOAuth = {
 
     /**
      * Exchange authorization code for access token
+     * Sends code to our Cloudflare Worker which has the client secret
      */
     async exchangeCodeForToken(code) {
-        console.log('[NotionOAuth] Exchanging code for token...');
+        console.log('[NotionOAuth] Exchanging code for token via server...');
 
-        const response = await fetch(this.config.tokenEndpoint, {
+        // Send code to our server which has the client secret
+        const response = await fetch(this.config.tokenServerEndpoint, {
             method: 'POST',
             headers: {
-                'Authorization': 'Basic ' + btoa(`${this.config.clientId}:${this.config.clientSecret}`),
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                grant_type: 'authorization_code',
                 code: code,
                 redirect_uri: this.config.redirectUri
             })
@@ -147,7 +148,7 @@ const NotionOAuth = {
         }
 
         const tokens = await response.json();
-        console.log('[NotionOAuth] ✓ Token exchange successful');
+        console.log('[NotionOAuth] ✓ Token exchange successful via server');
 
         // Store tokens securely
         await this.storeTokens(tokens);
@@ -161,7 +162,7 @@ const NotionOAuth = {
      */
     async createExportDatabase(accessToken) {
         console.log('[NotionOAuth] Creating export database...');
-        
+
         // 1. Search for a parent page to create database under
         const searchResponse = await fetch('https://api.notion.com/v1/search', {
             method: 'POST',
@@ -175,21 +176,21 @@ const NotionOAuth = {
                 page_size: 10
             })
         });
-        
+
         if (!searchResponse.ok) {
             const err = await searchResponse.json();
             throw new Error(`Search failed: ${err.message || searchResponse.status}`);
         }
-        
+
         const pages = await searchResponse.json();
         if (!pages.results || pages.results.length === 0) {
             throw new Error('No pages found. Please share at least one page with the integration in Notion.');
         }
-        
+
         // Use first available page as parent
         const parentPageId = pages.results[0].id;
         console.log('[NotionOAuth] Using parent page:', parentPageId);
-        
+
         // 2. Create database with export schema
         const createResponse = await fetch('https://api.notion.com/v1/databases', {
             method: 'POST',
@@ -203,8 +204,8 @@ const NotionOAuth = {
                 title: [{ text: { content: '🤖 AI Chats Export' } }],
                 properties: {
                     'Title': { title: {} },
-                    'Platform': { 
-                        select: { 
+                    'Platform': {
+                        select: {
                             options: [
                                 { name: 'Perplexity', color: 'blue' },
                                 { name: 'ChatGPT', color: 'green' },
@@ -220,22 +221,22 @@ const NotionOAuth = {
                 }
             })
         });
-        
+
         if (!createResponse.ok) {
             const err = await createResponse.json();
             throw new Error(`Database creation failed: ${err.message || createResponse.status}`);
         }
-        
+
         const database = await createResponse.json();
         console.log('[NotionOAuth] ✓ Database created:', database.id);
-        
+
         // 3. Save database ID to storage
-        await chrome.storage.local.set({ 
+        await chrome.storage.local.set({
             notionDbId: database.id,
             notionDbName: 'AI Chats Export',
             notionDbCreatedAt: Date.now()
         });
-        
+
         return database;
     },
 
@@ -259,7 +260,7 @@ const NotionOAuth = {
         });
 
         console.log('[NotionOAuth] Tokens stored successfully');
-        
+
         // Auto-create export database if not exists
         const { notionDbId } = await chrome.storage.local.get('notionDbId');
         if (!notionDbId) {

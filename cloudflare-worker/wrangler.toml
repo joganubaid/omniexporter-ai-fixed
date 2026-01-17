@@ -1,0 +1,15 @@
+name = "omniexporter-oauth"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Environment variables - set these via Cloudflare dashboard or wrangler secret
+# DO NOT put actual secrets here!
+# 
+# Run these commands after deploying:
+#   wrangler secret put NOTION_CLIENT_ID
+#   wrangler secret put NOTION_CLIENT_SECRET
+
+[vars]
+# These are example values - real secrets should be set via wrangler secret
+# NOTION_CLIENT_ID = "your-client-id"
+# NOTION_CLIENT_SECRET = "your-client-secret"

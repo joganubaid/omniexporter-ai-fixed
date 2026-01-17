@@ -34,12 +34,15 @@
                 <div class="platform-selector-container">
                     <!-- Platform Icon Display -->
                     <div id="platformIconDisplay" class="platform-icon-display">
-                        <img class="platform-icon" data-platform="Perplexity" src="icons/logos/perplexity.svg" alt="Perplexity" />
-                        <img class="platform-icon" data-platform="ChatGPT" src="icons/logos/chatgpt.svg" alt="ChatGPT" />
+                        <img class="platform-icon" data-platform="Perplexity" src="icons/logos/perplexity.svg"
+                            alt="Perplexity" />
+                        <img class="platform-icon" data-platform="ChatGPT" src="icons/logos/chatgpt.svg"
+                            alt="ChatGPT" />
                         <img class="platform-icon" data-platform="Claude" src="icons/logos/claude.svg" alt="Claude" />
                         <img class="platform-icon" data-platform="Gemini" src="icons/logos/gemini.svg" alt="Gemini" />
                         <img class="platform-icon" data-platform="Grok" src="icons/logos/grok.svg" alt="Grok" />
-                        <img class="platform-icon" data-platform="DeepSeek" src="icons/logos/deepseek.svg" alt="DeepSeek" />
+                        <img class="platform-icon" data-platform="DeepSeek" src="icons/logos/deepseek.svg"
+                            alt="DeepSeek" />
                     </div>
                     <select id="platformSelector" class="platform-selector" title="Select AI Platform">
                         <option value="">Detecting platforms...</option>
@@ -214,55 +217,25 @@
                             </div>
 
                             <div class="notion-auth-grid">
-                                <div class="setting-item">
-                                    <label>Auth Method</label>
-                                    <div class="auth-methods">
-                                        <label class="radio-option">
-                                            <input type="radio" name="notionAuthMethod" value="oauth" checked>
-                                            <span>OAuth2 (Recommended)</span>
-                                        </label>
-                                        <label class="radio-option">
-                                            <input type="radio" name="notionAuthMethod" value="token">
-                                            <span>Token</span>
-                                        </label>
-                                    </div>
-                                </div>
-
                                 <div id="notionOauthSection" class="notion-oauth-section">
                                     <div class="setting-item">
-                                        <label>OAuth Client ID</label>
-                                        <input type="text" id="notionOauthClientId" placeholder="your-client-id">
-                                    </div>
-                                    <div class="setting-item">
-                                        <label>OAuth Client Secret</label>
-                                        <input type="password" id="notionOauthClientSecret" placeholder="your-client-secret">
-                                    </div>
-                                    <div class="setting-item">
-                                        <label>Redirect URI</label>
-                                        <div class="redirect-uri-row">
-                                            <input type="text" id="notionOauthRedirectUri" readonly>
-                                            <button id="copyRedirectUri" class="btn-small">Copy</button>
+                                        <label>Connection Status</label>
+                                        <div class="oauth-status-row">
+                                            <span id="notionOauthStatus" class="status-pill">Not connected</span>
+                                            <button id="connectNotionOauth" class="btn-small primary">🔐 Connect to
+                                                Notion</button>
+                                            <button id="disconnectNotionOauth" class="btn-small danger"
+                                                style="display:none;">Disconnect</button>
                                         </div>
-                                        <small class="hint">Register this URL in your Notion integration settings.</small>
-                                    </div>
-                                    <div class="setting-item">
-                                        <button id="connectNotionOauth" class="btn-small">🔐 Connect OAuth2</button>
-                                        <button id="disconnectNotionOauth" class="btn-small danger">Disconnect</button>
-                                        <span id="notionOauthStatus" class="status-pill">Not connected</span>
-                                    </div>
-                                </div>
-
-                                <div id="notionTokenSection" class="notion-token-section">
-                                    <div class="setting-item">
-                                        <label>API Key / Token</label>
-                                        <input type="password" id="notionKey" placeholder="secret_...">
+                                        <small class="hint">One-click OAuth connection. No credentials needed!</small>
                                     </div>
                                 </div>
 
                                 <div class="setting-item">
                                     <label>Export Database</label>
-                                    <input type="text" id="notionDbId" placeholder="Auto-created after OAuth connection" readonly>
-                                    <small class="hint">Database is automatically created when you connect via OAuth. No manual setup needed!</small>
+                                    <input type="text" id="notionDbId" placeholder="Auto-created after connection"
+                                        readonly>
+                                    <small class="hint">Database is automatically created when you connect.</small>
                                 </div>
                                 <div class="setting-item">
                                     <button id="testNotionBtn" class="btn-small" style="margin-top: 10px;">
@@ -402,7 +375,8 @@
                             </ul>
 
                             <h4>2. Export Threads</h4>
-                            <p>Navigate to Perplexity, ChatGPT, Claude, Gemini, Grok, or DeepSeek and use the Thread History to bulk export.</p>
+                            <p>Navigate to Perplexity, ChatGPT, Claude, Gemini, Grok, or DeepSeek and use the Thread
+                                History to bulk export.</p>
                             <ul>
                                 <li>Select threads using checkboxes</li>
                                 <li>Click "Save Selected to Notion" or "Export MD"</li>
@@ -444,11 +418,11 @@
                 <a href="#" class="footer-link">📘 Documentation</a>
                 <a href="#" class="footer-link">💬 Support</a>
             </div>
-                        <div class="footer-brand">
-                            <span>OmniExporter AI v5.0.0</span>
-                            <span class="separator">•</span>
-                            <span class="enterprise-tag">Enterprise Edition</span>
-                        </div>
+            <div class="footer-brand">
+                <span>OmniExporter AI v5.0.0</span>
+                <span class="separator">•</span>
+                <span class="enterprise-tag">Enterprise Edition</span>
+            </div>
         </footer>
     </div>
 
