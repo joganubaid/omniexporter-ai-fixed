@@ -1308,8 +1308,8 @@ async function saveAllSettings() {
         syncCitations: document.getElementById('syncCitations').checked,
         skipExported: document.getElementById('skipExported').checked,
         notion_auth_method: authMethod,
-        notion_oauth_client_id: InputSanitizer.clean(document.getElementById('notionOauthClientId').value.trim()),
-        notion_oauth_client_secret: InputSanitizer.clean(document.getElementById('notionOauthClientSecret').value.trim())
+        notion_oauth_client_id: document.getElementById('notionOauthClientId') ? InputSanitizer.clean(document.getElementById('notionOauthClientId').value.trim()) : null,
+        notion_oauth_client_secret: document.getElementById('notionOauthClientSecret') ? InputSanitizer.clean(document.getElementById('notionOauthClientSecret').value.trim()) : null
     };
 
     // Notion API key validation (only if token selected)
