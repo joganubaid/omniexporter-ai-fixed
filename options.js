@@ -1230,23 +1230,31 @@ async function loadSettings() {
         document.getElementById('notionDbId').value = data.notionDbId;
     }
 
-    // OAuth credentials
-    if (data.notion_oauth_client_id) {
-        document.getElementById('notionOauthClientId').value = data.notion_oauth_client_id;
+    // OAuth credentials (optional - may not exist in simplified UI)
+    const clientIdInput = document.getElementById('notionOauthClientId');
+    const clientSecretInput = document.getElementById('notionOauthClientSecret');
+    const redirectUriInput = document.getElementById('notionOauthRedirectUri');
+
+    if (clientIdInput && data.notion_oauth_client_id) {
+        clientIdInput.value = data.notion_oauth_client_id;
     }
-    if (data.notion_oauth_client_secret) {
-        document.getElementById('notionOauthClientSecret').value = data.notion_oauth_client_secret;
+    if (clientSecretInput && data.notion_oauth_client_secret) {
+        clientSecretInput.value = data.notion_oauth_client_secret;
     }
 
-    // Redirect URI
-    const redirectUri = chrome.identity.getRedirectURL('notion');
-    document.getElementById('notionOauthRedirectUri').value = redirectUri;
+    // Redirect URI (optional in simplified UI)
+    if (redirectUriInput) {
+        const redirectUri = chrome.identity.getRedirectURL('notion');
+        redirectUriInput.value = redirectUri;
+    }
 
-    // Auth method
-    const authMethod = data.notion_auth_method || 'oauth';
-    const authRadio = document.querySelector(`input[name="notionAuthMethod"][value="${authMethod}"]`);
-    if (authRadio) authRadio.checked = true;
-    toggleNotionAuthSections(authMethod);
+    // Auth method (optional - simplified UI may not have this)
+    const authRadio = document.querySelector(`input[name="notionAuthMethod"]`);
+    if (authRadio) {
+        const authMethod = data.notion_auth_method || 'oauth';
+        const selectedRadio = document.querySelector(`input[name="notionAuthMethod"][value="${authMethod}"]`);
+        if (selectedRadio) selectedRadio.checked = true;
+    }
     updateOauthStatus(data);
 
     // Sync settings
