@@ -1063,26 +1063,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // Debug logging for OAuth button
+    // Connect OAuth button
     const connectBtn = document.getElementById('connectNotionOauth');
     if (connectBtn) {
-        console.log('✅ Found Connect Notion button, attaching listener');
-        connectBtn.addEventListener('click', (e) => {
-            console.log('🖱️ "Connect Notion" button clicked');
-            handleOauthConnect(e);
-        });
-    } else {
-        console.error('❌ Could not find "connectNotionOauth" button!');
+        connectBtn.addEventListener('click', handleOauthConnect);
     }
 
     document.getElementById('disconnectNotionOauth')?.addEventListener('click', handleOauthDisconnect);
 
     // Load NotionOAuth module
     if (typeof NotionOAuth !== 'undefined') {
-        console.log('✅ NotionOAuth module found, initializing...');
         await NotionOAuth.init();
-    } else {
-        console.error('❌ NotionOAuth module NOT found!');
     }
 
 
@@ -1297,7 +1288,6 @@ async function loadSettings() {
 
 
 async function saveAllSettings() {
-    console.log('💾 saveAllSettings called');
     try {
         const authMethod = document.querySelector('input[name="notionAuthMethod"]:checked')?.value || 'oauth';
 
@@ -1321,8 +1311,6 @@ async function saveAllSettings() {
             notion_oauth_client_secret: getVal('notionOauthClientSecret') || null
         };
 
-        console.log('💾 Savings settings object:', settings);
-
         // Notion API key validation (only if token selected)
         if (authMethod === 'token' && settings.notionApiKey && !settings.notionApiKey.startsWith('secret_') && !settings.notionApiKey.startsWith('ntn_')) {
             log('⚠️ Invalid Notion API Key format. Should start with secret_ or ntn_', 'error');
@@ -1336,7 +1324,6 @@ async function saveAllSettings() {
 
         await chrome.storage.local.set(settings);
         log('✅ All settings saved successfully!', 'success');
-        console.log('💾 Settings saved to storage');
 
         // Show confirmation
         const btn = document.getElementById('saveAllSettings');
@@ -1350,7 +1337,6 @@ async function saveAllSettings() {
             }, 2000);
         }
     } catch (e) {
-        console.error('❌ saveAllSettings failed:', e);
         log(`Error saving settings: ${e.message}`, 'error');
         throw e; // Re-throw to stop caller
     }
