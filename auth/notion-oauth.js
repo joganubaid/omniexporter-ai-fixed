@@ -13,10 +13,10 @@ const NotionOAuth = {
         clientId: typeof NOTION_CLIENT_ID !== 'undefined' ? NOTION_CLIENT_ID : null,
 
         // Server endpoint for secure token exchange
-        // Update this after deploying your Cloudflare Worker
+        // Your deployed Cloudflare Worker
         tokenServerEndpoint: typeof OAUTH_SERVER_URL !== 'undefined'
             ? `${OAUTH_SERVER_URL}/api/notion/token`
-            : 'https://omniexporter-oauth.workers.dev/api/notion/token',
+            : 'https://omniexporter-oauth.jonub250383.workers.dev/api/notion/token',
 
         // Standard Notion endpoints
         redirectUri: null, // Set dynamically
