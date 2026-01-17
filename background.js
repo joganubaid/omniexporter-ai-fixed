@@ -86,18 +86,37 @@ async function releaseSyncLock() {
 // ============================================
 chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === 'local') {
-        // Clear alarm when auto-sync is disabled
-        if (changes.autoSyncEnabled && changes.autoSyncEnabled.newValue === false) {
-            chrome.alarms.clear('autoSyncAlarm');
-            console.log('[Alarm] Auto-sync alarm cleared');
+        // Handle Auto-Sync Toggle
+        if (changes.autoSyncEnabled) {
+            if (changes.autoSyncEnabled.newValue === true) {
+                // Enable: Create alarm
+                chrome.storage.local.get('syncInterval', (res) => {
+                    const interval = res.syncInterval || 60;
+                    chrome.alarms.create('autoSyncAlarm', { periodInMinutes: interval });
+                    console.log(`[Alarm] Auto-sync enabled. Alarm set for every ${interval} minutes`);
+                    performAutoSync(); // Trigger immediate sync
+                });
+            } else {
+                // Disable: Clear alarm
+                chrome.alarms.clear('autoSyncAlarm');
+                console.log('[Alarm] Auto-sync alarm cleared');
+            }
+        }
+
+        // Update alarm interval if changed
+        if (changes.syncInterval && changes.syncInterval.newValue) {
+            chrome.storage.local.get('autoSyncEnabled', (res) => {
+                if (res.autoSyncEnabled) {
+                    const interval = changes.syncInterval.newValue;
+                    chrome.alarms.create('autoSyncAlarm', { periodInMinutes: interval });
+                    console.log(`[Alarm] Interval updated to ${interval} minutes`);
+                }
+            });
         }
 
         // Clear alarm when Notion credentials removed
-        if (changes.notionApiKey && !changes.notionApiKey.newValue) {
-            chrome.alarms.clear('autoSyncAlarm');
-            console.log('[Alarm] Alarm cleared - Notion key removed');
-        }
-        if (changes.notionKey && !changes.notionKey.newValue) {
+        if ((changes.notionApiKey && !changes.notionApiKey.newValue) ||
+            (changes.notionKey && !changes.notionKey.newValue)) {
             chrome.alarms.clear('autoSyncAlarm');
             console.log('[Alarm] Alarm cleared - Notion key removed');
         }
@@ -155,6 +174,7 @@ async function fetchThreadsSinceCheckpoint(tabId, platform, checkpoint) {
 }
 
 async function performAutoSync() {
+    console.log('[AutoSync] performAutoSync initiated');
     // Fix #1: Acquire global lock before sync
     if (!(await acquireSyncLock())) {
         return; // Another sync is in progress
@@ -164,6 +184,8 @@ async function performAutoSync() {
         const settings = await chrome.storage.local.get([
             'autoSyncEnabled', 'autoSyncNotion', 'notionApiKey', 'notionKey', 'notionDbId', 'exportedUuids', 'notion_auth_method'
         ]);
+
+        console.log('[AutoSync] Settings loaded:', { enabled: settings.autoSyncEnabled, dbId: settings.notionDbId ? 'Present' : 'Missing', notionAuth: settings.notion_auth_method });
 
         if (!settings.autoSyncEnabled || !settings.notionDbId) {
             console.log("[AutoSync] Skipped: Not configured or disabled");
@@ -204,9 +226,12 @@ async function performAutoSync() {
             });
 
             if (tabs.length === 0) {
-                console.log("[AutoSync] No AI platform tabs found");
+                console.log("[AutoSync] ❌ No AI platform tabs found - open an AI site first!");
+                await recordSyncJob(0, 0, 0); // Log that we checked
                 return;
             }
+
+            console.log(`[AutoSync] ✓ Found ${tabs.length} AI platform tab(s): ${tabs.map(t => t.url.split('/')[2]).join(', ')}`);
 
             const tab = tabs[0];
             const platform = tab.url.includes('perplexity') ? 'Perplexity'
@@ -222,7 +247,17 @@ async function performAutoSync() {
             console.log(`[AutoSync] Checkpoint for ${platform}:`, checkpoint);
 
             // Fetch only new threads since checkpoint
-            const { threads } = await fetchThreadsSinceCheckpoint(tab.id, platform, checkpoint);
+            console.log(`[AutoSync] Fetching threads from ${platform}...`);
+            let threads;
+            try {
+                const result = await fetchThreadsSinceCheckpoint(tab.id, platform, checkpoint);
+                threads = result.threads || [];
+                console.log(`[AutoSync] ✓ Fetched ${threads.length} threads from content script`);
+            } catch (fetchError) {
+                console.error(`[AutoSync] ❌ Failed to fetch threads:`, fetchError);
+                await recordSyncJob(0, 0, 1); // Log failure
+                return;
+            }
             const exportedUuids = new Set(settings.exportedUuids || []);
 
             // Filter out already exported
@@ -233,6 +268,9 @@ async function performAutoSync() {
             if (newThreads.length === 0) {
                 // Update checkpoint even if no new threads
                 await updateSyncCheckpoint(platform, Date.now(), null);
+
+                // Log empty run so user sees it in Activity Log
+                await recordSyncJob(0, 0, 0);
                 return;
             }
 
@@ -263,6 +301,7 @@ async function performAutoSync() {
                             continue;
                         }
 
+                        console.log(`[AutoSync] Syncing thread "${detailResponse.data?.title || thread.uuid}" to Notion...`);
                         const syncResult = await syncToNotion(detailResponse.data, settings);
 
                         if (syncResult.success) {
