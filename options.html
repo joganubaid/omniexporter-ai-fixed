@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniExporter AI - Dashboard</title>
+    <link rel="stylesheet" href="options.css">
+</head>
+
+<body>
+    <div class="dashboard">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-brand">
+                <svg viewBox="0 0 24 24" width="28" height="28">
+                    <path fill="currentColor"
+                        d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M11,6V12L16,15L16.8,13.7L12.5,11.2V6H11Z" />
+                </svg>
+                <div>
+                    <h1>OmniExporter AI</h1>
+                    <span class="subtitle">Enterprise Dashboard</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button id="autoSyncToggle" class="auto-sync-btn" title="Toggle Auto-Sync">
+                    <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path>
+                        <path d="M21 3v5h-5"></path>
+                    </svg>
+                    <span>Auto Off</span>
+                </button>
+                <div class="platform-selector-container">
+                    <!-- Platform Icon Display -->
+                    <div id="platformIconDisplay" class="platform-icon-display">
+                        <img class="platform-icon" data-platform="Perplexity" src="icons/logos/perplexity.svg" alt="Perplexity" />
+                        <img class="platform-icon" data-platform="ChatGPT" src="icons/logos/chatgpt.svg" alt="ChatGPT" />
+                        <img class="platform-icon" data-platform="Claude" src="icons/logos/claude.svg" alt="Claude" />
+                        <img class="platform-icon" data-platform="Gemini" src="icons/logos/gemini.svg" alt="Gemini" />
+                        <img class="platform-icon" data-platform="Grok" src="icons/logos/grok.svg" alt="Grok" />
+                        <img class="platform-icon" data-platform="DeepSeek" src="icons/logos/deepseek.svg" alt="DeepSeek" />
+                    </div>
+                    <select id="platformSelector" class="platform-selector" title="Select AI Platform">
+                        <option value="">Detecting platforms...</option>
+                    </select>
+                    <button id="refreshPlatformsBtn" class="icon-btn" title="Refresh Platforms">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M23 4v6h-6"></path>
+                            <path d="M1 20v-6h6"></path>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                    </button>
+
+                    <!-- Phase 5 Fix 5: Connection Status Indicator -->
+                    <div class="connection-status" id="connectionStatus" style="display: none;">
+                        <span class="status-dot"></span>
+                        <span class="status-text">Checking...</span>
+                        <span class="response-time"></span>
+                    </div>
+                </div>
+            </div>
+
+        </header>
+
+        <!-- Main Content -->
+        <main class="dashboard-main">
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar">
+                <button class="nav-item active" data-tab="history">
+                    <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                        <path d="M3 3v5h5"></path>
+                        <path d="M12 7v5l4 2"></path>
+                    </svg>
+                    <span>Thread History</span>
+                </button>
+                <button class="nav-item" data-tab="settings">
+                    <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path
+                            d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z">
+                        </path>
+                    </svg>
+                    <span>Settings</span>
+                </button>
+                <button class="nav-item" data-tab="activity">
+                    <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+                    </svg>
+                    <span>Activity Log</span>
+                </button>
+                <button class="nav-item" data-tab="manual">
+                    <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                    </svg>
+                    <span>Manual</span>
+                </button>
+            </nav>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- TAB: Thread History -->
+                <section id="tab-history" class="tab-content active">
+                    <!-- Data Source Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <path d="M3 3v18h18"></path>
+                                    <path d="m19 9-5 5-4-4-3 3"></path>
+                                </svg> Data Source</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="radio-group">
+                                <label class="radio-option">
+                                    <input type="radio" name="dataSource" value="all" checked>
+                                    <span>All Threads</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="dataSource" value="spaces">
+                                    <span>From Spaces</span>
+                                </label>
+                            </div>
+                            <select id="spaceSelector" class="space-dropdown hidden">
+                                <option value="">Select a Space...</option>
+                            </select>
+                            <div class="date-filter">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="dateFilterEnabled">
+                                    <span class="checkmark"></span>
+                                    Only sync since:
+                                </label>
+                                <input type="date" id="dateFilterValue" class="date-input" disabled>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Thread List Card -->
+                    <div class="card thread-list-card">
+                        <div class="card-header">
+                            <div class="thread-header-left">
+                                <h3>Thread List</h3>
+                                <input type="text" id="historySearch" class="search-input"
+                                    placeholder="Search threads...">
+                            </div>
+                            <div class="thread-header-actions">
+                                <button id="selectAllBtn" class="btn-icon" title="Select All">☑️</button>
+                                <button id="refreshHistory" class="btn-icon" title="Refresh">🔄</button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <!-- Pagination -->
+                            <div class="pagination-bar">
+                                <button id="prevPageBtn" class="page-btn" disabled>← Prev</button>
+                                <span id="pageIndicator" class="page-indicator">Page 1 • 0 items</span>
+                                <button id="loadAllBtn" class="page-btn">Load All</button>
+                                <button id="nextPageBtn" class="page-btn">Next →</button>
+                            </div>
+
+                            <!-- Thread List -->
+                            <div id="threadList" class="thread-list">
+                                <div class="loader">Loading threads...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bulk Actions -->
+                    <div class="bulk-actions-bar">
+                        <button id="bulkExportBtn" class="primary-btn" disabled>
+                            <span>Save Selected to Notion (0)</span>
+                        </button>
+                        <button id="bulkMdBtn" class="secondary-btn" disabled>
+                            <span>Export MD (0)</span>
+                        </button>
+                        <button id="exportAllBtn" class="secondary-btn">
+                            <span>Export All</span>
+                        </button>
+                        <button id="clearCacheBtn" class="danger-btn">
+                            Clear Cache
+                        </button>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div id="exportProgress" class="progress-container hidden">
+                        <div class="progress-bar-bg">
+                            <div id="progressBarFill" class="progress-bar-fill"></div>
+                        </div>
+                        <div id="progressText" class="progress-text">Exporting: 0/0</div>
+                    </div>
+                </section>
+
+                <!-- TAB: Settings -->
+                <section id="tab-settings" class="tab-content hidden">
+                    <!-- Notion Integration -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path>
+                                    <path d="M14 2v4a2 2 0 0 0 2 2h4"></path>
+                                </svg> Notion Integration</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="security-notice">
+                                <strong>⚠️ Security Notice:</strong> Your Notion credentials are stored locally in your
+                                browser. Never share your extension data or sync settings across untrusted devices.
+                            </div>
+
+                            <div class="notion-auth-grid">
+                                <div class="setting-item">
+                                    <label>Auth Method</label>
+                                    <div class="auth-methods">
+                                        <label class="radio-option">
+                                            <input type="radio" name="notionAuthMethod" value="oauth" checked>
+                                            <span>OAuth2 (Recommended)</span>
+                                        </label>
+                                        <label class="radio-option">
+                                            <input type="radio" name="notionAuthMethod" value="token">
+                                            <span>Token</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div id="notionOauthSection" class="notion-oauth-section">
+                                    <div class="setting-item">
+                                        <label>OAuth Client ID</label>
+                                        <input type="text" id="notionOauthClientId" placeholder="your-client-id">
+                                    </div>
+                                    <div class="setting-item">
+                                        <label>OAuth Client Secret</label>
+                                        <input type="password" id="notionOauthClientSecret" placeholder="your-client-secret">
+                                    </div>
+                                    <div class="setting-item">
+                                        <label>Redirect URI</label>
+                                        <div class="redirect-uri-row">
+                                            <input type="text" id="notionOauthRedirectUri" readonly>
+                                            <button id="copyRedirectUri" class="btn-small">Copy</button>
+                                        </div>
+                                        <small class="hint">Register this URL in your Notion integration settings.</small>
+                                    </div>
+                                    <div class="setting-item">
+                                        <button id="connectNotionOauth" class="btn-small">🔐 Connect OAuth2</button>
+                                        <button id="disconnectNotionOauth" class="btn-small danger">Disconnect</button>
+                                        <span id="notionOauthStatus" class="status-pill">Not connected</span>
+                                    </div>
+                                </div>
+
+                                <div id="notionTokenSection" class="notion-token-section">
+                                    <div class="setting-item">
+                                        <label>API Key / Token</label>
+                                        <input type="password" id="notionKey" placeholder="secret_...">
+                                    </div>
+                                </div>
+
+                                <div class="setting-item">
+                                    <label>Export Database</label>
+                                    <input type="text" id="notionDbId" placeholder="Auto-created after OAuth connection" readonly>
+                                    <small class="hint">Database is automatically created when you connect via OAuth. No manual setup needed!</small>
+                                </div>
+                                <div class="setting-item">
+                                    <button id="testNotionBtn" class="btn-small" style="margin-top: 10px;">
+                                        🔌 Test Connection
+                                    </button>
+                                    <span id="notionTestResult" style="margin-left: 10px; font-size: 0.85rem;"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- Sync Configuration -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <path d="M12 20v-6M6 20V10M18 20V4"></path>
+                                </svg> Sync Configuration</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="setting-item">
+                                <label>Auto-Sync Interval (minutes)</label>
+                                <input type="number" id="syncInterval" class="small-input" value="60" min="5"
+                                    max="1440">
+                            </div>
+                            <div class="checkbox-grid">
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="autoSyncNotion">
+                                    <span class="checkmark"></span>
+                                    Auto-sync to Notion
+                                </label>
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="includeMetadata">
+                                    <span class="checkmark"></span>
+                                    Include Metadata
+                                </label>
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="syncImages" checked>
+                                    <span class="checkmark"></span>
+                                    Sync Images
+                                </label>
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="syncCitations" checked>
+                                    <span class="checkmark"></span>
+                                    Sync Citations
+                                </label>
+                                <label class="checkbox-container">
+                                    <input type="checkbox" id="skipExported" checked>
+                                    <span class="checkmark"></span>
+                                    Skip Already Exported
+                                </label>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Save Button -->
+                    <div class="settings-actions">
+                        <button id="saveAllSettings" class="primary-btn">
+                            <svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                <polyline points="7 3 7 8 15 8"></polyline>
+                            </svg>
+                            Save All Settings
+                        </button>
+                    </div>
+                </section>
+
+                <!-- TAB: Activity Log -->
+                <section id="tab-activity" class="tab-content hidden">
+                    <!-- Activity Sub-tabs -->
+                    <div class="subtab-nav">
+                        <button class="subtab active" data-subtab="logs">Activity Logs</button>
+                        <button class="subtab" data-subtab="failures">Failures</button>
+                        <button class="subtab" data-subtab="history">Export History</button>
+                    </div>
+
+                    <!-- Activity Logs -->
+                    <div id="subtab-logs" class="subtab-content active">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Activity Log</h3>
+                                <div class="card-actions">
+                                    <button id="downloadLogsBtn" class="btn-small">📥 Download JSON</button>
+                                    <button id="clearLogs" class="btn-small danger">🗑️ Clear</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div id="logContent" class="log-content"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Failures -->
+                    <div id="subtab-failures" class="subtab-content hidden">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Export Failures</h3>
+                            </div>
+                            <div class="card-body">
+                                <div id="failureContent" class="failure-list"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Export History -->
+                    <div id="subtab-history" class="subtab-content hidden">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Export History</h3>
+                            </div>
+                            <div class="card-body">
+                                <div id="historyContent" class="history-list"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB: Manual -->
+                <section id="tab-manual" class="tab-content hidden">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>📘 How to Use OmniExporter AI</h3>
+                        </div>
+                        <div class="card-body manual-content">
+                            <h4>1. Configure Notion Integration</h4>
+                            <p>Go to <strong>Settings</strong> tab and choose OAuth2 or Token authentication.</p>
+                            <ul>
+                                <li>Create an integration at <a href="https://www.notion.so/my-integrations"
+                                        target="_blank">notion.so/my-integrations</a></li>
+                                <li>Register your OAuth redirect URL (from Settings) or paste your token</li>
+                                <li>Share your database with the integration</li>
+                                <li>Copy the Database ID from the URL</li>
+                            </ul>
+
+                            <h4>2. Export Threads</h4>
+                            <p>Navigate to Perplexity, ChatGPT, Claude, Gemini, Grok, or DeepSeek and use the Thread History to bulk export.</p>
+                            <ul>
+                                <li>Select threads using checkboxes</li>
+                                <li>Click "Save Selected to Notion" or "Export MD"</li>
+                                <li>Use filters to narrow down by date or space</li>
+                            </ul>
+
+                            <h4>3. Enable Auto-Sync</h4>
+                            <p>Toggle Auto-Sync in the header to automatically sync new conversations.</p>
+                            <ul>
+                                <li>Configure interval in Settings</li>
+                                <li>Background sync happens even when popup is closed</li>
+                            </ul>
+
+                            <h4>4. Monitor Activity</h4>
+                            <p>Check the Activity Log tab for sync history, failures, and export logs.</p>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>📊 Subscription Status</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="subscription-badge enterprise">
+                                <span class="crown">👑</span>
+                                <span class="plan">Enterprise PRO</span>
+                            </div>
+                            <p class="subscription-info">Unlimited exports • Priority support • All platforms</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="dashboard-footer">
+            <div class="footer-links">
+                <a href="#" class="footer-link">🌐 Website</a>
+                <a href="#" class="footer-link">📘 Documentation</a>
+                <a href="#" class="footer-link">💬 Support</a>
+            </div>
+                        <div class="footer-brand">
+                            <span>OmniExporter AI v5.0.0</span>
+                            <span class="separator">•</span>
+                            <span class="enterprise-tag">Enterprise Edition</span>
+                        </div>
+        </footer>
+    </div>
+
+    <script src="auth/notion-oauth.js"></script>
+    <script src="options.js"></script>
+</body>
+
+</html>
