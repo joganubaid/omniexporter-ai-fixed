@@ -1,6 +1,12 @@
 // OmniExporter AI - Enterprise Edition v5.0
 // background.js - Enterprise Background Service Worker (Phase 10-12)
 
+try {
+    importScripts('config.js', 'auth/notion-oauth.js');
+} catch (e) {
+    console.error("Failed to load dependencies:", e);
+}
+
 console.log("OmniExporter AI Service Worker Active");
 
 // ============================================
