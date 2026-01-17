@@ -1062,19 +1062,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             toggleNotionAuthSections(e.target.value);
         });
     });
-    document.getElementById('copyRedirectUri')?.addEventListener('click', () => {
-        const input = document.getElementById('notionOauthRedirectUri');
-        if (input) {
-            navigator.clipboard.writeText(input.value);
-            log('Redirect URI copied', 'info');
-        }
-    });
-    document.getElementById('connectNotionOauth')?.addEventListener('click', handleOauthConnect);
+
+    // Debug logging for OAuth button
+    const connectBtn = document.getElementById('connectNotionOauth');
+    if (connectBtn) {
+        console.log('✅ Found Connect Notion button, attaching listener');
+        connectBtn.addEventListener('click', (e) => {
+            console.log('🖱️ "Connect Notion" button clicked');
+            handleOauthConnect(e);
+        });
+    } else {
+        console.error('❌ Could not find "connectNotionOauth" button!');
+    }
+
     document.getElementById('disconnectNotionOauth')?.addEventListener('click', handleOauthDisconnect);
 
     // Load NotionOAuth module
     if (typeof NotionOAuth !== 'undefined') {
+        console.log('✅ NotionOAuth module found, initializing...');
         await NotionOAuth.init();
+    } else {
+        console.error('❌ NotionOAuth module NOT found!');
     }
 
 
