@@ -166,7 +166,7 @@ class ExportManager {
     static toHTML(data, platform) {
         const entries = data.detail?.entries || [];
         const title = data.title || 'Untitled Chat';
-        
+
         // Platform emoji icons
         const platformIcons = {
             'Perplexity': '🧭',
@@ -299,12 +299,7 @@ class ExportManager {
         </div>
         <div class="content">`;
 
-        entries.forEach((entry, index) => {
-            const query = entry.query || entry.query_str || '';
-            const answer = this.extractAnswer(entry);
 
-        html += `
-        <div class="content">`;
 
         entries.forEach((entry, index) => {
             const query = entry.query || entry.query_str || '';
