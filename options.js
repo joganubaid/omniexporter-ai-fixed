@@ -1297,45 +1297,65 @@ async function loadSettings() {
 
 
 async function saveAllSettings() {
-    const authMethod = document.querySelector('input[name="notionAuthMethod"]:checked')?.value || 'oauth';
-    const settings = {
-        notionApiKey: InputSanitizer.clean(document.getElementById('notionKey').value.trim()),
-        notionDbId: InputSanitizer.clean(document.getElementById('notionDbId').value.trim()),
-        syncInterval: parseInt(document.getElementById('syncInterval').value) || 60,
-        autoSyncNotion: document.getElementById('autoSyncNotion').checked,
-        includeMetadata: document.getElementById('includeMetadata').checked,
-        syncImages: document.getElementById('syncImages').checked,
-        syncCitations: document.getElementById('syncCitations').checked,
-        skipExported: document.getElementById('skipExported').checked,
-        notion_auth_method: authMethod,
-        notion_oauth_client_id: document.getElementById('notionOauthClientId') ? InputSanitizer.clean(document.getElementById('notionOauthClientId').value.trim()) : null,
-        notion_oauth_client_secret: document.getElementById('notionOauthClientSecret') ? InputSanitizer.clean(document.getElementById('notionOauthClientSecret').value.trim()) : null
-    };
+    console.log('💾 saveAllSettings called');
+    try {
+        const authMethod = document.querySelector('input[name="notionAuthMethod"]:checked')?.value || 'oauth';
 
-    // Notion API key validation (only if token selected)
-    if (authMethod === 'token' && settings.notionApiKey && !settings.notionApiKey.startsWith('secret_') && !settings.notionApiKey.startsWith('ntn_')) {
-        log('⚠️ Invalid Notion API Key format. Should start with secret_ or ntn_', 'error');
-        return;
+        // Helper to check element existence
+        const getVal = (id) => {
+            const el = document.getElementById(id);
+            return el ? InputSanitizer.clean(el.value.trim()) : '';
+        };
+
+        const settings = {
+            notionApiKey: getVal('notionKey'),
+            notionDbId: getVal('notionDbId'),
+            syncInterval: parseInt(document.getElementById('syncInterval')?.value) || 60,
+            autoSyncNotion: document.getElementById('autoSyncNotion')?.checked || false,
+            includeMetadata: document.getElementById('includeMetadata')?.checked || false,
+            syncImages: document.getElementById('syncImages')?.checked || false,
+            syncCitations: document.getElementById('syncCitations')?.checked || false,
+            skipExported: document.getElementById('skipExported')?.checked || false,
+            notion_auth_method: authMethod,
+            notion_oauth_client_id: getVal('notionOauthClientId') || null,
+            notion_oauth_client_secret: getVal('notionOauthClientSecret') || null
+        };
+
+        console.log('💾 Savings settings object:', settings);
+
+        // Notion API key validation (only if token selected)
+        if (authMethod === 'token' && settings.notionApiKey && !settings.notionApiKey.startsWith('secret_') && !settings.notionApiKey.startsWith('ntn_')) {
+            log('⚠️ Invalid Notion API Key format. Should start with secret_ or ntn_', 'error');
+            return;
+        }
+
+        if (settings.notionDbId && !InputSanitizer.validateDatabaseId(settings.notionDbId)) {
+            log('⚠️ Invalid Notion Database ID format.', 'error');
+            return;
+        }
+
+        await chrome.storage.local.set(settings);
+        log('✅ All settings saved successfully!', 'success');
+        console.log('💾 Settings saved to storage');
+
+        // Show confirmation
+        const btn = document.getElementById('saveAllSettings');
+        if (btn) {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '✅ Saved!';
+            btn.style.backgroundColor = 'var(--success)';
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.style.backgroundColor = '';
+            }, 2000);
+        }
+    } catch (e) {
+        console.error('❌ saveAllSettings failed:', e);
+        log(`Error saving settings: ${e.message}`, 'error');
+        throw e; // Re-throw to stop caller
     }
-
-    if (settings.notionDbId && !InputSanitizer.validateDatabaseId(settings.notionDbId)) {
-        log('⚠️ Invalid Notion Database ID format.', 'error');
-        return;
-    }
-
-    await chrome.storage.local.set(settings);
-    log('✅ All settings saved successfully!', 'success');
-
-    // Show confirmation
-    const btn = document.getElementById('saveAllSettings');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '✅ Saved!';
-    btn.style.backgroundColor = 'var(--success)';
-    setTimeout(() => {
-        btn.innerHTML = originalText;
-        btn.style.backgroundColor = '';
-    }, 2000);
 }
+
 
 // Test Notion API connection
 async function testNotionConnection() {
