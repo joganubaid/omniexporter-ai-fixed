@@ -4,7 +4,8 @@
  * Client secret is stored on Cloudflare Worker, never exposed to extension
  */
 
-const NotionOAuth = {
+
+var NotionOAuth = {
     // OAuth2 Configuration
     // Client ID is loaded from config, Secret is on server only
     config: {
