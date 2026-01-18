@@ -2598,3 +2598,309 @@ function downloadFile(content, name) {
     a.click();
     URL.revokeObjectURL(url);
 }
+
+// ============================================
+// DEVELOPER TOOLS - LOG VIEWER
+// ============================================
+
+/**
+ * Initialize Developer Tools tab
+ */
+async function initDevTools() {
+    // Load debug settings
+    const settings = await chrome.storage.local.get([
+        'debugMode',
+        'logMaxEntries',
+        'logConsoleOutput'
+    ]);
+
+    // Set toggle state
+    const debugToggle = document.getElementById('debugModeToggle');
+    if (debugToggle) {
+        debugToggle.checked = settings.debugMode || false;
+        debugToggle.addEventListener('change', async (e) => {
+            const enabled = e.target.checked;
+            await chrome.storage.local.set({ debugMode: enabled });
+            if (typeof Logger !== 'undefined') {
+                Logger.config.enabled = enabled;
+                Logger.info('System', enabled ? 'Debug mode enabled' : 'Debug mode disabled');
+            }
+            refreshLogStats();
+        });
+    }
+
+    // Log max entries dropdown
+    const maxEntriesSelect = document.getElementById('logMaxEntries');
+    if (maxEntriesSelect) {
+        maxEntriesSelect.value = settings.logMaxEntries || '1000';
+        maxEntriesSelect.addEventListener('change', async (e) => {
+            await chrome.storage.local.set({ logMaxEntries: parseInt(e.target.value) });
+            if (typeof Logger !== 'undefined') {
+                Logger.config.maxEntries = parseInt(e.target.value);
+            }
+        });
+    }
+
+    // Console output checkbox
+    const consoleOutputCheck = document.getElementById('logConsoleOutput');
+    if (consoleOutputCheck) {
+        consoleOutputCheck.checked = settings.logConsoleOutput !== false;
+        consoleOutputCheck.addEventListener('change', async (e) => {
+            await chrome.storage.local.set({ logConsoleOutput: e.target.checked });
+            if (typeof Logger !== 'undefined') {
+                Logger.config.consoleOutput = e.target.checked;
+            }
+        });
+    }
+
+    // Bind button handlers
+    document.getElementById('refreshLogStats')?.addEventListener('click', refreshLogStats);
+    document.getElementById('applyLogFilters')?.addEventListener('click', loadLogEntries);
+    document.getElementById('downloadLogsJson')?.addEventListener('click', downloadLogsAsJsonFile);
+    document.getElementById('downloadLogsTxt')?.addEventListener('click', downloadLogsAsTxt);
+    document.getElementById('copyLogsForAI')?.addEventListener('click', copyLogsForAI);
+    document.getElementById('clearAllLogs')?.addEventListener('click', clearAllLogs);
+
+    // Initial load
+    refreshLogStats();
+    loadLogEntries();
+}
+
+/**
+ * Refresh log statistics
+ */
+async function refreshLogStats() {
+    try {
+        if (typeof Logger === 'undefined') {
+            console.warn('Logger not available');
+            return;
+        }
+
+        const stats = await Logger.getStats();
+
+        document.getElementById('statTotalLogs').textContent = stats.total || 0;
+        document.getElementById('statErrors').textContent = stats.byLevel?.ERROR || 0;
+        document.getElementById('statWarnings').textContent = stats.byLevel?.WARN || 0;
+        document.getElementById('statInfo').textContent = (stats.byLevel?.INFO || 0) + (stats.byLevel?.DEBUG || 0);
+    } catch (e) {
+        console.error('Failed to refresh log stats:', e);
+    }
+}
+
+/**
+ * Load and render log entries with filters
+ */
+async function loadLogEntries() {
+    const container = document.getElementById('logEntriesContainer');
+    if (!container) return;
+
+    try {
+        if (typeof Logger === 'undefined') {
+            container.innerHTML = '<div class="log-empty-state">Logger not initialized.</div>';
+            return;
+        }
+
+        // Get filter values
+        const level = document.getElementById('logFilterLevel')?.value || '';
+        const module = document.getElementById('logFilterModule')?.value || '';
+        const search = document.getElementById('logSearchInput')?.value || '';
+        const limitVal = document.getElementById('logLimit')?.value;
+        const limit = limitVal ? parseInt(limitVal) : null;
+
+        // Fetch logs with filters
+        const logs = await Logger.getLogs({
+            level: level || undefined,
+            module: module || undefined,
+            search: search || undefined,
+            limit: limit || undefined
+        });
+
+        if (logs.length === 0) {
+            container.innerHTML = '<div class="log-empty-state">No logs match your filters. Enable debug mode to start collecting logs.</div>';
+            return;
+        }
+
+        // Render log entries (newest first)
+        const reversedLogs = [...logs].reverse();
+        container.innerHTML = reversedLogs.map(renderLogEntry).join('');
+
+        // Add click handlers for expandable entries
+        container.querySelectorAll('.log-entry-expandable').forEach(el => {
+            el.addEventListener('click', () => el.classList.toggle('expanded'));
+        });
+    } catch (e) {
+        console.error('Failed to load log entries:', e);
+        container.innerHTML = `<div class="log-empty-state">Error loading logs: ${e.message}</div>`;
+    }
+}
+
+/**
+ * Render a single log entry
+ */
+function renderLogEntry(log) {
+    const time = log.timestamp.split('T')[1].split('.')[0];
+    const hasData = log.data && Object.keys(log.data).length > 0;
+    const expandableClass = hasData ? 'log-entry-expandable' : '';
+    const levelClass = `level-${log.level.toLowerCase()}`;
+
+    let dataHtml = '';
+    if (hasData) {
+        try {
+            dataHtml = `<div class="log-data">${JSON.stringify(log.data, null, 2)}</div>`;
+        } catch (e) {
+            dataHtml = '<div class="log-data">[Data not serializable]</div>';
+        }
+    }
+
+    return `
+        <div class="log-entry ${levelClass} ${expandableClass}">
+            <span class="log-time">${time}</span>
+            <span class="log-level">${log.level}</span>
+            <span class="log-module">${log.moduleIcon || '❓'} ${log.module}</span>
+            <span class="log-message">${escapeHtml(log.message)}${hasData ? ' ▸' : ''}</span>
+            ${dataHtml}
+        </div>
+    `;
+}
+
+/**
+ * Download logs as JSON file
+ */
+async function downloadLogsAsJsonFile() {
+    try {
+        if (typeof Logger === 'undefined') return;
+
+        const exportData = await Logger.exportLogs('json');
+        const blob = new Blob([exportData.content], { type: exportData.mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = exportData.filename;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        Logger.info('System', 'Logs exported as JSON');
+    } catch (e) {
+        console.error('Failed to download logs:', e);
+    }
+}
+
+/**
+ * Download logs as text file
+ */
+async function downloadLogsAsTxt() {
+    try {
+        if (typeof Logger === 'undefined') return;
+
+        const exportData = await Logger.exportLogs('txt');
+        const blob = new Blob([exportData.content], { type: exportData.mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = exportData.filename;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        Logger.info('System', 'Logs exported as text');
+    } catch (e) {
+        console.error('Failed to download logs:', e);
+    }
+}
+
+/**
+ * Copy AI-friendly report to clipboard
+ */
+async function copyLogsForAI() {
+    try {
+        if (typeof Logger === 'undefined') return;
+
+        const report = await Logger.generateAIReport();
+        await navigator.clipboard.writeText(report);
+
+        // Show confirmation
+        const btn = document.getElementById('copyLogsForAI');
+        if (btn) {
+            const originalText = btn.textContent;
+            btn.textContent = '✓ Copied!';
+            setTimeout(() => btn.textContent = originalText, 2000);
+        }
+
+        Logger.info('System', 'AI report copied to clipboard');
+    } catch (e) {
+        console.error('Failed to copy logs:', e);
+        alert('Failed to copy to clipboard. Please check permissions.');
+    }
+}
+
+/**
+ * Clear all stored logs
+ */
+async function clearAllLogs() {
+    if (!confirm('Clear all debug logs? This cannot be undone.')) return;
+
+    try {
+        if (typeof Logger !== 'undefined') {
+            await Logger.clear();
+        }
+        await chrome.storage.local.remove('omniExporterLogs');
+
+        refreshLogStats();
+        loadLogEntries();
+    } catch (e) {
+        console.error('Failed to clear logs:', e);
+    }
+}
+
+// ============================================
+// AUTO-REFRESH LOG VIEWER
+// ============================================
+let logAutoRefreshInterval = null;
+let isDevToolsTabActive = false;
+
+function startLogAutoRefresh() {
+    if (logAutoRefreshInterval) return;
+    logAutoRefreshInterval = setInterval(() => {
+        if (isDevToolsTabActive && document.visibilityState === 'visible') {
+            refreshLogStats();
+            loadLogEntries();
+        }
+    }, 3000); // Refresh every 3 seconds
+}
+
+function stopLogAutoRefresh() {
+    if (logAutoRefreshInterval) {
+        clearInterval(logAutoRefreshInterval);
+        logAutoRefreshInterval = null;
+    }
+}
+
+// Initialize Developer Tools when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    // Delay init slightly to ensure Logger is loaded
+    setTimeout(initDevTools, 100);
+
+    // Watch for tab changes to manage auto-refresh
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const tabId = item.dataset.tab;
+            isDevToolsTabActive = (tabId === 'devtools');
+
+            if (isDevToolsTabActive) {
+                startLogAutoRefresh();
+                refreshLogStats();
+                loadLogEntries();
+            } else {
+                stopLogAutoRefresh();
+            }
+        });
+    });
+});
+
+// Stop auto-refresh when page is hidden
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        stopLogAutoRefresh();
+    } else if (isDevToolsTabActive) {
+        startLogAutoRefresh();
+    }
+});

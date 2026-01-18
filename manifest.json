@@ -49,6 +49,7 @@
                 "https://claude.ai/*"
             ],
             "js": [
+                "logger.js",
                 "network-interceptor.js",
                 "platform-config.js",
                 "content.js"
@@ -59,6 +60,7 @@
                 "https://gemini.google.com/*"
             ],
             "js": [
+                "logger.js",
                 "network-interceptor.js",
                 "platform-config.js",
                 "gemini-inject.js",
@@ -73,6 +75,7 @@
                 "https://x.com/i/grok/*"
             ],
             "js": [
+                "logger.js",
                 "network-interceptor.js",
                 "platform-config.js",
                 "grok-adapter.js",
@@ -85,6 +88,7 @@
                 "https://chat.deepseek.com/*"
             ],
             "js": [
+                "logger.js",
                 "network-interceptor.js",
                 "platform-config.js",
                 "deepseek-adapter.js",

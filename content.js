@@ -1,6 +1,13 @@
 // OmniExporter AI - Enterprise Edition
 // content.js - Unified Platform Adapter
 
+// Initialize Logger for content script
+if (typeof Logger !== 'undefined') {
+    Logger.init().then(() => {
+        Logger.info('Content', 'Content script active', { url: window.location.hostname });
+    }).catch(() => { });
+}
+
 console.log("OmniExporter AI Content Script Active");
 
 // ============================================
@@ -687,14 +694,14 @@ const ChatGPTAdapter = {
                 headers['OAI-Device-Id'] = deviceId;
                 console.log('[ChatGPT] Using OAI-Device-Id:', deviceId.substring(0, 8) + '...');
             }
-            
+
             // Try to get session token
-            const sessionToken = localStorage.getItem('sessionToken') || 
-                                localStorage.getItem('__Secure-next-auth.session-token');
+            const sessionToken = localStorage.getItem('sessionToken') ||
+                localStorage.getItem('__Secure-next-auth.session-token');
             if (sessionToken) {
                 console.log('[ChatGPT] Found session token');
             }
-            
+
             headers['OAI-Language'] = 'en-US';
         } catch (e) {
             console.warn('[ChatGPT] Could not read localStorage:', e.message);
@@ -880,7 +887,7 @@ const ChatGPTAdapter = {
 
                 const response = await ChatGPTAdapter._fetchWithRetry(url, {}, 2);
                 const data = await response.json();
-                
+
                 // Validate response structure
                 if (!data || (!data.mapping && !data.messages && !data.conversation)) {
                     console.warn('[ChatGPT] Invalid response structure from:', endpoint);
@@ -958,9 +965,9 @@ const ChatGPTAdapter = {
 
                 // Check for role indicators in parent or article itself
                 const isUser = article.closest('[data-message-author-role="user"]') ||
-                              article.querySelector('[data-message-author-role="user"]') ||
-                              text.toLowerCase().includes('you said');
-                
+                    article.querySelector('[data-message-author-role="user"]') ||
+                    text.toLowerCase().includes('you said');
+
                 if (isUser) {
                     currentQuery = text;
                 } else if (currentQuery) {
@@ -973,10 +980,10 @@ const ChatGPTAdapter = {
         // Strategy 3: Alternating message blocks (fallback)
         if (messages.length === 0) {
             console.log('[ChatGPT] Strategy 3: Alternating blocks');
-            
+
             const allBlocks = Array.from(document.querySelectorAll('main [class*="group"], main > div > div > div'));
             const textBlocks = [];
-            
+
             allBlocks.forEach(block => {
                 const text = block.innerText?.trim();
                 if (text && text.length > 20) {

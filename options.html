@@ -105,6 +105,15 @@
                     </svg>
                     <span>Manual</span>
                 </button>
+                <button class="nav-item" data-tab="devtools">
+                    <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <path d="M12 20V10"></path>
+                        <path d="M18 20V4"></path>
+                        <path d="M6 20v-4"></path>
+                    </svg>
+                    <span>Dev Tools</span>
+                </button>
             </nav>
 
             <!-- Content Area -->
@@ -408,6 +417,140 @@
                         </div>
                     </div>
                 </section>
+
+                <!-- TAB: Developer Tools -->
+                <section id="tab-devtools" class="tab-content hidden">
+                    <!-- Debug Mode Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <path d="M12 20V10"></path>
+                                    <path d="M18 20V4"></path>
+                                    <path d="M6 20v-4"></path>
+                                </svg> Debug Mode</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="debug-toggle-row">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="debugModeToggle">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <div class="debug-toggle-info">
+                                    <strong>Enable Debug Mode</strong>
+                                    <p>When enabled, detailed logs are stored for troubleshooting. Logs persist until
+                                        cleared.</p>
+                                </div>
+                            </div>
+
+                            <div class="debug-settings-row">
+                                <div class="setting-item">
+                                    <label>Log Retention</label>
+                                    <select id="logMaxEntries">
+                                        <option value="100">100 entries</option>
+                                        <option value="500">500 entries</option>
+                                        <option value="1000" selected>1,000 entries</option>
+                                        <option value="5000">5,000 entries</option>
+                                    </select>
+                                </div>
+                                <div class="setting-item">
+                                    <label class="checkbox-container">
+                                        <input type="checkbox" id="logConsoleOutput" checked>
+                                        <span class="checkmark"></span>
+                                        Also output to browser console
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Log Statistics -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>📊 Log Statistics</h3>
+                            <button id="refreshLogStats" class="btn-small">🔄 Refresh</button>
+                        </div>
+                        <div class="card-body">
+                            <div class="log-stats-grid">
+                                <div class="stat-item">
+                                    <span class="stat-value" id="statTotalLogs">0</span>
+                                    <span class="stat-label">Total Logs</span>
+                                </div>
+                                <div class="stat-item error">
+                                    <span class="stat-value" id="statErrors">0</span>
+                                    <span class="stat-label">Errors</span>
+                                </div>
+                                <div class="stat-item warning">
+                                    <span class="stat-value" id="statWarnings">0</span>
+                                    <span class="stat-label">Warnings</span>
+                                </div>
+                                <div class="stat-item info">
+                                    <span class="stat-value" id="statInfo">0</span>
+                                    <span class="stat-label">Info</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Log Viewer -->
+                    <div class="card log-viewer-card">
+                        <div class="card-header">
+                            <h3>📋 Log Viewer</h3>
+                            <div class="card-actions">
+                                <button id="downloadLogsJson" class="btn-small">📥 JSON</button>
+                                <button id="downloadLogsTxt" class="btn-small">📄 Text</button>
+                                <button id="copyLogsForAI" class="btn-small primary">🤖 Copy for AI</button>
+                                <button id="clearAllLogs" class="btn-small danger">🗑️ Clear All</button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <!-- Log Filters -->
+                            <div class="log-filters">
+                                <select id="logFilterLevel">
+                                    <option value="">All Levels</option>
+                                    <option value="ERROR">🔴 Errors Only</option>
+                                    <option value="WARN">🟡 Warnings+</option>
+                                    <option value="INFO">🔵 Info+</option>
+                                    <option value="DEBUG">⚪ Debug (All)</option>
+                                </select>
+                                <select id="logFilterModule">
+                                    <option value="">All Modules</option>
+                                    <option value="AutoSync">🔄 AutoSync</option>
+                                    <option value="OAuth">🔐 OAuth</option>
+                                    <option value="Content">📄 Content</option>
+                                    <option value="Perplexity">🟦 Perplexity</option>
+                                    <option value="ChatGPT">🟢 ChatGPT</option>
+                                    <option value="Claude">🟠 Claude</option>
+                                    <option value="Gemini">🟣 Gemini</option>
+                                    <option value="Grok">🔴 Grok</option>
+                                    <option value="DeepSeek">🟤 DeepSeek</option>
+                                    <option value="Export">📤 Export</option>
+                                    <option value="Notion">📝 Notion</option>
+                                    <option value="Storage">💾 Storage</option>
+                                    <option value="UI">🖥️ UI</option>
+                                    <option value="Network">🌐 Network</option>
+                                    <option value="System">🔧 System</option>
+                                </select>
+                                <input type="text" id="logSearchInput" placeholder="Search logs..."
+                                    class="log-search-input">
+                                <select id="logLimit">
+                                    <option value="50">Last 50</option>
+                                    <option value="100" selected>Last 100</option>
+                                    <option value="250">Last 250</option>
+                                    <option value="500">Last 500</option>
+                                    <option value="">All</option>
+                                </select>
+                                <button id="applyLogFilters" class="btn-small">Apply</button>
+                            </div>
+
+                            <!-- Log Entries -->
+                            <div id="logEntriesContainer" class="log-entries-container">
+                                <div class="log-empty-state">No logs yet. Enable debug mode to start collecting logs.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </div>
         </main>
 
@@ -426,6 +569,7 @@
         </footer>
     </div>
 
+    <script src="logger.js"></script>
     <script src="config.js"></script>
     <script src="auth/notion-oauth.js"></script>
     <script src="options.js"></script>

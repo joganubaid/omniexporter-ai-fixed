@@ -2,10 +2,15 @@
 // background.js - Enterprise Background Service Worker (Phase 10-12)
 
 try {
-    importScripts('config.js', 'auth/notion-oauth.js');
+    importScripts('logger.js', 'config.js', 'auth/notion-oauth.js');
 } catch (e) {
     console.error("Failed to load dependencies:", e);
 }
+
+// Initialize logger for background script
+Logger.init().then(() => {
+    Logger.info('System', 'OmniExporter AI Service Worker Active');
+}).catch(e => console.error('Logger init failed:', e));
 
 console.log("OmniExporter AI Service Worker Active");
 
@@ -216,10 +221,10 @@ async function performAutoSync() {
             'autoSyncEnabled', 'autoSyncNotion', 'notionApiKey', 'notionKey', 'notionDbId', 'exportedUuids', 'notion_auth_method'
         ]);
 
-        console.log('[AutoSync] Settings loaded:', { enabled: settings.autoSyncEnabled, dbId: settings.notionDbId ? 'Present' : 'Missing', notionAuth: settings.notion_auth_method });
+        Logger.debug('AutoSync', 'Settings loaded', { enabled: settings.autoSyncEnabled, dbId: settings.notionDbId ? 'Present' : 'Missing', notionAuth: settings.notion_auth_method });
 
         if (!settings.autoSyncEnabled || !settings.notionDbId) {
-            console.log("[AutoSync] Skipped: Not configured or disabled");
+            Logger.warn('AutoSync', 'Skipped: Not configured or disabled');
             await releaseSyncLock();
             return;
         }
@@ -239,7 +244,7 @@ async function performAutoSync() {
             return;
         }
 
-        console.log("[AutoSync] Starting incremental sync...");
+        Logger.info('AutoSync', 'Starting incremental sync...');
 
         try {
             // Find AI platform tabs - ALL 6 PLATFORMS
@@ -263,7 +268,7 @@ async function performAutoSync() {
                 return;
             }
 
-            console.log(`[AutoSync] ✓ Found ${tabs.length} AI platform tab(s): ${tabs.map(t => t.url.split('/')[2]).join(', ')}`);
+            Logger.info('AutoSync', `Found ${tabs.length} AI platform tab(s)`, { platforms: tabs.map(t => t.url.split('/')[2]) });
 
             const tab = tabs[0];
             const platform = tab.url.includes('perplexity') ? 'Perplexity'
@@ -284,9 +289,9 @@ async function performAutoSync() {
             try {
                 const result = await fetchThreadsSinceCheckpoint(tab.id, platform, checkpoint);
                 threads = result.threads || [];
-                console.log(`[AutoSync] ✓ Fetched ${threads.length} threads from content script`);
+                Logger.info('AutoSync', `Fetched ${threads.length} threads from content script`, { platform });
             } catch (fetchError) {
-                console.error(`[AutoSync] ❌ Failed to fetch threads:`, fetchError);
+                Logger.error('AutoSync', 'Failed to fetch threads', { error: fetchError.message });
                 await recordSyncJob(0, 0, 1); // Log failure
                 return;
             }
@@ -295,7 +300,7 @@ async function performAutoSync() {
             // Filter out already exported
             const newThreads = threads.filter(t => !exportedUuids.has(t.uuid));
 
-            console.log(`[AutoSync] Found ${newThreads.length} new threads since checkpoint`);
+            Logger.info('AutoSync', `Found ${newThreads.length} new threads since checkpoint`, { total: threads.length, newCount: newThreads.length });
 
             if (newThreads.length === 0) {
                 // Update checkpoint even if no new threads
@@ -539,6 +544,14 @@ async function recordSyncJob(total, success, failed) {
 // MESSAGE HANDLERS
 // ============================================
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    // Handle logs from content scripts
+    if (request.type === "LOGGER_STORE_LOG") {
+        if (typeof Logger !== 'undefined' && Logger.receiveLog) {
+            Logger.receiveLog(request.payload);
+        }
+        return false; // No response needed
+    }
+
     if (request.type === "LOG_FAILURE") {
         trackFailure(request.payload);
     } else if (request.type === "TRIGGER_SYNC") {

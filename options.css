@@ -1308,8 +1308,8 @@ body {
     50% {
         opacity: 0.5;
     }
-} 
- 
+}
+
 /* ============================================ */
 /* SKELETON LOADING & ENHANCED LOAD ALL */
 /* ============================================ */
@@ -1335,8 +1335,15 @@ body {
 }
 
 @keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-5px); }
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-5px);
+    }
 }
 
 .platform-name {
@@ -1360,8 +1367,13 @@ body {
 }
 
 @keyframes progress-slide {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(400%); }
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(400%);
+    }
 }
 
 .loading-text {
@@ -1415,8 +1427,15 @@ body {
 }
 
 @keyframes skeleton-pulse {
-    0%, 100% { opacity: 0.6; }
-    50% { opacity: 1; }
+
+    0%,
+    100% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
 }
 
 /* Enhanced Load All Button */
@@ -1470,4 +1489,319 @@ body {
 
 .platform-icon-display .platform-icon.active {
     display: block;
+}
+
+/* ============================================ */
+/* DEVELOPER TOOLS - DEBUG LOG VIEWER */
+/* ============================================ */
+
+/* Debug Mode Toggle */
+.debug-toggle-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px;
+    background: rgba(99, 102, 241, 0.05);
+    border-radius: 10px;
+    border: 1px solid rgba(99, 102, 241, 0.15);
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 26px;
+    flex-shrink: 0;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--bg-primary);
+    border: 2px solid var(--border);
+    border-radius: 26px;
+    transition: 0.3s;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 2px;
+    bottom: 2px;
+    background-color: var(--text-secondary);
+    border-radius: 50%;
+    transition: 0.3s;
+}
+
+.toggle-switch input:checked+.toggle-slider {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+
+.toggle-switch input:checked+.toggle-slider:before {
+    transform: translateX(24px);
+    background-color: white;
+}
+
+.debug-toggle-info strong {
+    display: block;
+    font-size: 14px;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.debug-toggle-info p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.debug-settings-row {
+    display: flex;
+    gap: 24px;
+    margin-top: 16px;
+}
+
+.debug-settings-row .setting-item {
+    flex: 1;
+}
+
+.debug-settings-row select {
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 12px;
+}
+
+/* Log Statistics Grid */
+.log-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 16px;
+    background: var(--bg-primary);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+}
+
+.stat-item .stat-value {
+    display: block;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.stat-item .stat-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-item.error .stat-value {
+    color: var(--danger);
+}
+
+.stat-item.warning .stat-value {
+    color: var(--warning);
+}
+
+.stat-item.info .stat-value {
+    color: var(--accent);
+}
+
+/* Log Filters */
+.log-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 12px;
+    background: var(--bg-primary);
+    border-radius: 8px;
+}
+
+.log-filters select {
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 11px;
+    min-width: 120px;
+}
+
+.log-search-input {
+    flex: 1;
+    min-width: 150px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 11px;
+}
+
+.log-search-input::placeholder {
+    color: var(--text-secondary);
+}
+
+/* Log Entries Container */
+.log-entries-container {
+    max-height: 500px;
+    overflow-y: auto;
+    background: var(--bg-primary);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.log-empty-state {
+    padding: 40px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+/* Individual Log Entry */
+.log-entry {
+    display: flex;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 11px;
+    transition: background 0.15s;
+}
+
+.log-entry:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+.log-entry .log-time {
+    color: var(--text-secondary);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.log-entry .log-level {
+    font-weight: 600;
+    width: 50px;
+    flex-shrink: 0;
+}
+
+.log-entry .log-module {
+    color: var(--accent);
+    width: 90px;
+    flex-shrink: 0;
+}
+
+.log-entry .log-message {
+    color: var(--text-primary);
+    flex: 1;
+    word-break: break-word;
+}
+
+.log-entry .log-data {
+    color: var(--text-secondary);
+    font-size: 10px;
+    margin-top: 4px;
+    padding-left: 10px;
+    border-left: 2px solid var(--border);
+}
+
+/* Log Level Colors */
+.log-entry.level-error {
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.log-entry.level-error .log-level {
+    color: var(--danger);
+}
+
+.log-entry.level-warn {
+    background: rgba(247, 168, 30, 0.03);
+}
+
+.log-entry.level-warn .log-level {
+    color: var(--warning);
+}
+
+.log-entry.level-info .log-level {
+    color: var(--accent);
+}
+
+.log-entry.level-debug .log-level {
+    color: var(--text-secondary);
+}
+
+/* Expandable Log Data */
+.log-entry-expandable {
+    cursor: pointer;
+}
+
+.log-entry-expandable .log-data {
+    display: none;
+}
+
+.log-entry-expandable.expanded .log-data {
+    display: block;
+}
+
+/* Card Actions for Log Viewer */
+.log-viewer-card .card-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-small.primary {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
+.btn-small.primary:hover {
+    background: var(--accent-light);
+}
+
+/* Responsive for smaller screens */
+@media (max-width: 768px) {
+    .log-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .debug-settings-row {
+        flex-direction: column;
+    }
+
+    .log-filters {
+        flex-direction: column;
+    }
+
+    .log-filters select,
+    .log-search-input {
+        width: 100%;
+    }
 }
