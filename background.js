@@ -62,6 +62,21 @@ class ResilientDataExtractor {
 }
 
 // ============================================
+// PLATFORM URL GENERATOR
+// ============================================
+function getPlatformUrl(platform, uuid) {
+    const urls = {
+        'Perplexity': `https://www.perplexity.ai/search/${uuid}`,
+        'ChatGPT': `https://chatgpt.com/c/${uuid}`,
+        'Claude': `https://claude.ai/chat/${uuid}`,
+        'Gemini': `https://gemini.google.com/app/${uuid}`,
+        'Grok': `https://grok.com/conversation/${uuid}`,
+        'DeepSeek': `https://chat.deepseek.com/c/${uuid}`
+    };
+    return urls[platform] || urls['Perplexity'];
+}
+
+// ============================================
 // GLOBAL SYNC LOCK (Fix #1)
 // ============================================
 let globalSyncInProgress = false;
@@ -151,23 +166,39 @@ async function updateSyncCheckpoint(platform, lastSyncTime, lastUuid) {
 }
 
 /**
- * Fetch only threads since last checkpoint
+ * Fetch threads from content script
+ * Note: We fetch ALL threads and let exportedUuids handle filtering
+ * This ensures threads that were never synced still get picked up
  */
 async function fetchThreadsSinceCheckpoint(tabId, platform, checkpoint) {
     return new Promise((resolve) => {
+        // Add timeout to prevent hanging
+        const timeout = setTimeout(() => {
+            console.warn('[AutoSync] Timeout waiting for content script response');
+            resolve({ threads: [], hasMore: false });
+        }, 30000);
+
         chrome.tabs.sendMessage(tabId, {
             type: 'GET_THREAD_LIST',
-            payload: { page: 1, limit: 50, sinceTimestamp: checkpoint.lastSyncTime }
+            payload: { page: 1, limit: 50 }
         }, (response) => {
+            clearTimeout(timeout);
+
+            if (chrome.runtime.lastError) {
+                console.error('[AutoSync] Message error:', chrome.runtime.lastError.message);
+                resolve({ threads: [], hasMore: false });
+                return;
+            }
+
             if (!response || !response.success) {
+                console.warn('[AutoSync] Content script returned unsuccessful response:', response?.error);
                 resolve({ threads: [], hasMore: false });
             } else {
-                // Filter threads newer than checkpoint
-                const filtered = (response.data.threads || []).filter(t => {
-                    const threadTime = new Date(t.last_query_datetime).getTime();
-                    return threadTime > checkpoint.lastSyncTime;
-                });
-                resolve({ threads: filtered, hasMore: response.data.hasMore });
+                // Return ALL threads - filtering by exportedUuids happens in performAutoSync
+                // This ensures threads that were never synced will be picked up
+                const threads = response.data.threads || [];
+                console.log(`[AutoSync] Content script returned ${threads.length} threads`);
+                resolve({ threads, hasMore: response.data.hasMore });
             }
         });
     });
@@ -228,6 +259,7 @@ async function performAutoSync() {
             if (tabs.length === 0) {
                 console.log("[AutoSync] ❌ No AI platform tabs found - open an AI site first!");
                 await recordSyncJob(0, 0, 0); // Log that we checked
+                await releaseSyncLock(); // FIX: Release lock before returning
                 return;
             }
 
@@ -354,6 +386,64 @@ async function syncToNotion(data, settings) {
         const children = [];
         const token = await NotionOAuth.getActiveToken();
 
+        // First, fetch database schema to know which properties exist
+        let dbSchema = null;
+        try {
+            const schemaResponse = await fetch(
+                `https://api.notion.com/v1/databases/${settings.notionDbId}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Notion-Version': '2022-06-28'
+                    }
+                }
+            );
+            if (schemaResponse.ok) {
+                dbSchema = await schemaResponse.json();
+                console.log('[AutoSync] Database properties:', Object.keys(dbSchema.properties || {}));
+            }
+        } catch (schemaErr) {
+            console.warn('[AutoSync] Could not fetch schema, using defaults:', schemaErr.message);
+        }
+
+        // Find the title property (could be named differently)
+        let titlePropertyName = 'Title';
+        if (dbSchema?.properties) {
+            for (const [name, prop] of Object.entries(dbSchema.properties)) {
+                if (prop.type === 'title') {
+                    titlePropertyName = name;
+                    break;
+                }
+            }
+        }
+
+        // Build properties dynamically based on what exists in the database
+        const properties = {};
+
+        // Title is always required
+        properties[titlePropertyName] = {
+            title: [{ type: "text", text: { content: (data.title || "Untitled").slice(0, 2000) } }]
+        };
+
+        // Only add optional properties if they exist in the schema
+        if (dbSchema?.properties) {
+            if (dbSchema.properties['URL'] && dbSchema.properties['URL'].type === 'url') {
+                properties['URL'] = { url: getPlatformUrl(data.platform, data.uuid) };
+            }
+            if (dbSchema.properties['Tags'] && dbSchema.properties['Tags'].type === 'multi_select') {
+                properties['Tags'] = { multi_select: [{ name: data.platform || 'AI' }] };
+            }
+            if (dbSchema.properties['Platform'] && dbSchema.properties['Platform'].type === 'select') {
+                properties['Platform'] = { select: { name: data.platform || 'AI' } };
+            }
+            if (dbSchema.properties['Chat Time'] && dbSchema.properties['Chat Time'].type === 'date') {
+                properties['Chat Time'] = { date: { start: new Date().toISOString().split('T')[0] } };
+            }
+            if (dbSchema.properties['Exported'] && dbSchema.properties['Exported'].type === 'date') {
+                properties['Exported'] = { date: { start: new Date().toISOString().split('T')[0] } };
+            }
+        }
+
         children.push({
             type: "callout",
             callout: {
@@ -396,6 +486,8 @@ async function syncToNotion(data, settings) {
             }
         });
 
+        console.log('[AutoSync] Creating page with properties:', Object.keys(properties));
+
         const response = await fetch('https://api.notion.com/v1/pages', {
             method: 'POST',
             headers: {
@@ -405,23 +497,21 @@ async function syncToNotion(data, settings) {
             },
             body: JSON.stringify({
                 parent: { database_id: settings.notionDbId },
-                properties: {
-                    'Title': { title: [{ type: "text", text: { content: data.title || "Untitled" } }] },
-                    'URL': { url: `https://www.perplexity.ai/search/${data.uuid}` },
-                    'Tags': { multi_select: [{ name: data.platform || 'AI' }] },
-                    'Chat Time': { date: { start: new Date().toISOString().split('T')[0] } }
-                },
+                properties,
                 children: children.slice(0, 100) // Notion limit
             })
         });
 
         if (!response.ok) {
             const err = await response.json();
-            return { success: false, error: err.message || 'API Error' };
+            console.error('[AutoSync] Notion API Error:', err);
+            return { success: false, error: err.message || err.code || 'API Error' };
         }
 
+        console.log('[AutoSync] ✓ Page created successfully');
         return { success: true };
     } catch (e) {
+        console.error('[AutoSync] syncToNotion exception:', e);
         return { success: false, error: e.message };
     }
 }
