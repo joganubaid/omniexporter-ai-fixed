@@ -15,10 +15,17 @@ Logger.init().then(() => {
 console.log("OmniExporter AI Service Worker Active");
 
 // ============================================
-// ALARM SETUP
+// SERVICE WORKER KEEP-ALIVE (MV3 Fix)
+// MV3 service workers terminate after ~30s of inactivity
+// We use a periodic alarm to keep it responsive
 // ============================================
+const KEEP_ALIVE_ALARM = 'keepAlive';
+
 chrome.runtime.onInstalled.addListener(() => {
     console.log("OmniExporter AI Service Worker Installed");
+
+    // Create keep-alive alarm (every 25 seconds)
+    chrome.alarms.create(KEEP_ALIVE_ALARM, { periodInMinutes: 0.4 });
 
     // Initialize default settings
     chrome.storage.local.get(['autoSyncEnabled', 'syncInterval'], (res) => {
@@ -30,7 +37,19 @@ chrome.runtime.onInstalled.addListener(() => {
     });
 });
 
+// Also create keep-alive on startup (service worker restarts)
+chrome.runtime.onStartup.addListener(() => {
+    chrome.alarms.create(KEEP_ALIVE_ALARM, { periodInMinutes: 0.4 });
+    Logger.info('System', 'Service worker started up');
+});
+
 chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === KEEP_ALIVE_ALARM) {
+        // Keep-alive ping - just log occasionally
+        // This prevents the service worker from going inactive
+        return;
+    }
+
     if (alarm.name === 'autoSyncAlarm') {
         console.log("Auto-sync alarm triggered");
         performAutoSync();
@@ -603,5 +622,15 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
                 console.log("Thread exported via context menu:", response.data.title);
             }
         });
+    }
+});
+
+// ============================================
+// KEYBOARD SHORTCUTS (Commands)
+// ============================================
+chrome.commands.onCommand.addListener((command) => {
+    if (command === 'open_dashboard') {
+        chrome.tabs.create({ url: chrome.runtime.getURL('options.html') });
+        Logger.info('System', 'Dashboard opened via keyboard shortcut');
     }
 });

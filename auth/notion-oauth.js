@@ -4,6 +4,13 @@
  * Client secret is stored on Cloudflare Worker, never exposed to extension
  */
 
+// Helper to safely call Logger (use var to allow redeclaration in service worker context)
+var _logOAuth = _logOAuth || function (level, message, data) {
+    if (typeof Logger !== 'undefined') {
+        Logger[level]('OAuth', message, data);
+    }
+    console[level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log'](`[NotionOAuth] ${message}`, data || '');
+};
 
 var NotionOAuth = {
     // OAuth2 Configuration
@@ -34,11 +41,10 @@ var NotionOAuth = {
             // Set redirect URI dynamically from extension ID
             this.config.redirectUri = chrome.identity.getRedirectURL('notion');
 
-            console.log('[NotionOAuth] Initialized with redirect:', this.config.redirectUri);
-            console.log('[NotionOAuth] Using server-side token exchange');
+            _logOAuth('info', 'OAuth initialized', { redirectUri: this.config.redirectUri });
             return true;
         } catch (error) {
-            console.error('[NotionOAuth] Init failed:', error);
+            _logOAuth('error', 'Init failed', { error: error.message });
             return false;
         }
     },
@@ -71,7 +77,7 @@ var NotionOAuth = {
         authUrl.searchParams.set('state', state);
         authUrl.searchParams.set('scope', this.config.scopes.join(' '));
 
-        console.log('[NotionOAuth] Starting authorization flow:', authUrl.toString());
+        _logOAuth('info', 'Starting authorization flow');
 
         // Open authorization window
         return new Promise((resolve, reject) => {
@@ -82,7 +88,7 @@ var NotionOAuth = {
                 },
                 async (redirectUrl) => {
                     if (chrome.runtime.lastError) {
-                        console.error('[NotionOAuth] Auth flow error:', chrome.runtime.lastError);
+                        _logOAuth('error', 'Auth flow error', { error: chrome.runtime.lastError.message });
                         reject(new Error(chrome.runtime.lastError.message));
                         return;
                     }
@@ -110,7 +116,7 @@ var NotionOAuth = {
                             return;
                         }
 
-                        console.log('[NotionOAuth] Received authorization code');
+                        _logOAuth('info', 'Received authorization code');
 
                         // Exchange code for access token
                         const tokens = await this.exchangeCodeForToken(code);
@@ -129,7 +135,7 @@ var NotionOAuth = {
      * Sends code to our Cloudflare Worker which has the client secret
      */
     async exchangeCodeForToken(code) {
-        console.log('[NotionOAuth] Exchanging code for token via server...');
+        _logOAuth('debug', 'Exchanging code for token via server...');
 
         // Send code to our server which has the client secret
         const response = await fetch(this.config.tokenServerEndpoint, {
@@ -149,7 +155,7 @@ var NotionOAuth = {
         }
 
         const tokens = await response.json();
-        console.log('[NotionOAuth] ✓ Token exchange successful via server');
+        _logOAuth('info', 'Token exchange successful');
 
         // Store tokens securely
         await this.storeTokens(tokens);
@@ -162,7 +168,7 @@ var NotionOAuth = {
      * Called automatically after OAuth token exchange
      */
     async createExportDatabase(accessToken) {
-        console.log('[NotionOAuth] Creating export database...');
+        _logOAuth('debug', 'Creating export database...');
 
         // 1. Search for a parent page to create database under
         const searchResponse = await fetch('https://api.notion.com/v1/search', {
@@ -190,7 +196,7 @@ var NotionOAuth = {
 
         // Use first available page as parent
         const parentPageId = pages.results[0].id;
-        console.log('[NotionOAuth] Using parent page:', parentPageId);
+        _logOAuth('debug', 'Using parent page for database', { parentPageId });
 
         // 2. Create database with export schema
         const createResponse = await fetch('https://api.notion.com/v1/databases', {
@@ -260,7 +266,7 @@ var NotionOAuth = {
             notion_auth_method: 'oauth' // Track which auth method is active
         });
 
-        console.log('[NotionOAuth] Tokens stored successfully');
+        _logOAuth('info', 'Tokens stored successfully');
 
         // Auto-create export database if not exists
         const { notionDbId } = await chrome.storage.local.get('notionDbId');
@@ -268,11 +274,11 @@ var NotionOAuth = {
             try {
                 await this.createExportDatabase(tokens.access_token);
             } catch (e) {
-                console.warn('[NotionOAuth] Could not auto-create database:', e.message);
+                _logOAuth('warn', 'Could not auto-create database', { error: e.message });
                 // Don't throw - user can still manually configure later
             }
         } else {
-            console.log('[NotionOAuth] Database already exists:', notionDbId);
+            _logOAuth('debug', 'Database already exists', { notionDbId });
         }
     },
 
@@ -293,7 +299,7 @@ var NotionOAuth = {
 
         // Check if token is expired
         if (stored.notion_oauth_token_expires && Date.now() >= stored.notion_oauth_token_expires) {
-            console.log('[NotionOAuth] Token expired, refreshing...');
+            _logOAuth('info', 'Token expired, refreshing...');
             return await this.refreshAccessToken(stored.notion_oauth_refresh_token);
         }
 
@@ -308,7 +314,7 @@ var NotionOAuth = {
             throw new Error('No refresh token available');
         }
 
-        console.log('[NotionOAuth] Refreshing access token...');
+        _logOAuth('debug', 'Refreshing access token...');
 
         const response = await fetch(this.config.tokenEndpoint, {
             method: 'POST',

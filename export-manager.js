@@ -38,8 +38,11 @@ class ExportManager {
     static export(data, format = 'markdown', platform = 'Unknown') {
         const formatConfig = this.formats[format];
         if (!formatConfig) {
+            if (typeof Logger !== 'undefined') Logger.error('Export', 'Unsupported format', { format });
             throw new Error(`Unsupported format: ${format}`);
         }
+
+        if (typeof Logger !== 'undefined') Logger.info('Export', `Exporting as ${format}`, { platform, title: data.title });
 
         let content;
         switch (format) {
@@ -63,6 +66,8 @@ class ExportManager {
 
         const filename = this.generateFilename(data.title || 'Chat', formatConfig.extension);
         this.downloadFile(content, filename, formatConfig.mimeType);
+
+        if (typeof Logger !== 'undefined') Logger.info('Export', 'Download complete', { filename, format: formatConfig.name });
         return { success: true, filename, format: formatConfig.name };
     }
 

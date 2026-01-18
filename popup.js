@@ -2,18 +2,32 @@
 // Phase 9: Multi-Platform Export v5.0
 
 // ============================================
+// LOGGER HELPER (popup context)
+// ============================================
+const logPopup = (level, message, data = null) => {
+    if (typeof Logger !== 'undefined') {
+        Logger[level]('UI', message, data);
+    }
+    console[level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log'](`[Popup] ${message}`, data || '');
+};
+
+// Initialize Logger
+if (typeof Logger !== 'undefined') {
+    Logger.init().catch(() => { });
+}
+
+// ============================================
 // GLOBAL ERROR HANDLER (Audit Fix)
 // ============================================
 window.addEventListener('error', (event) => {
-    console.error('[OmniExporter] Uncaught error:', event.error);
-    // Show toast if available
+    logPopup('error', 'Uncaught error', { error: event.error?.message });
     if (typeof OmniToast !== 'undefined') {
         OmniToast.show('An error occurred. Check console for details.', 'error');
     }
 });
 
 window.addEventListener('unhandledrejection', (event) => {
-    console.error('[OmniExporter] Unhandled promise rejection:', event.reason);
+    logPopup('error', 'Unhandled promise rejection', { reason: event.reason?.message || String(event.reason) });
     if (typeof OmniToast !== 'undefined') {
         OmniToast.show('Operation failed. Please try again.', 'error');
     }
@@ -37,7 +51,7 @@ async function withRetry(fn, maxRetries = 3, baseDelayMs = 2000) {
             }
             if (attempt < maxRetries - 1) {
                 const delay = baseDelayMs * Math.pow(2, attempt);
-                console.warn(`[OmniExporter] Retry ${attempt + 1}/${maxRetries} after ${delay}ms:`, error.message);
+                logPopup('warn', `Retry ${attempt + 1}/${maxRetries} after ${delay}ms`, { error: error.message });
                 await new Promise(r => setTimeout(r, delay));
             }
         }
@@ -413,10 +427,10 @@ async function ensureContentScript(tabId) {
             target: { tabId },
             files: ['platform-config.js', 'content.js']
         });
-        console.log('[Popup] Content script injected');
+        logPopup('debug', 'Content script injected');
         return true;
     } catch (e) {
-        console.warn('[Popup] Injection failed:', e.message);
+        logPopup('warn', 'Content script injection failed', { error: e.message });
         return false;
     }
 }
@@ -440,7 +454,7 @@ async function detectPlatform() {
         // Try to communicate with content script
         chrome.tabs.sendMessage(tab.id, { type: 'GET_PLATFORM_INFO' }, async (response) => {
             if (chrome.runtime.lastError) {
-                console.log('[Popup] Content script not ready, injecting...');
+                logPopup('debug', 'Content script not ready, injecting...');
 
                 // Fix #3: Inject content script and retry
                 const injected = await ensureContentScript(tab.id);
@@ -465,12 +479,13 @@ async function detectPlatform() {
 
             if (response && response.success) {
                 currentPlatform = response.platform;
+                logPopup('info', 'Platform detected', { platform: currentPlatform });
                 document.getElementById('platform-status').textContent = currentPlatform;
                 updateNavBarActive(currentPlatform);
             }
         });
     } catch (e) {
-        console.error("Platform detection error:", e);
+        logPopup('error', 'Platform detection error', { error: e.message });
     }
 }
 
@@ -481,7 +496,7 @@ async function exportCurrentChat(format = 'markdown') {
     try {
         await reqDeduplication.run('export', async () => {
             LoadingManager.show('exportBtn', '⏳');
-            setStatus('Extracting...', 'info');
+            logPopup('info', 'Starting export', { format });
 
             // Show loading toast if available
             let loadingToastId;
@@ -549,7 +564,7 @@ async function exportCurrentChat(format = 'markdown') {
             });
         });
     } catch (err) {
-        console.error("[OmniExporter] Error in exportCurrentChat:", err);
+        logPopup('error', 'Export failed', { error: err.message });
         setStatus('Failed', 'error');
         LoadingManager.hide('exportBtn');
         if (typeof Toast !== 'undefined') Toast.error('Export failed');
@@ -563,7 +578,7 @@ async function saveToNotion() {
     try {
         await reqDeduplication.run('saveNotion', async () => {
             LoadingManager.show('saveToNotionBtn', '⏳');
-            setStatus('Syncing to Notion...', 'info');
+            logPopup('info', 'Starting Notion sync');
 
             const storage = await chrome.storage.local.get(['notionDbId']);
             if (!storage.notionDbId) {
@@ -618,7 +633,7 @@ async function saveToNotion() {
             });
         });
     } catch (err) {
-        console.error("[OmniExporter] Error in saveToNotion:", err);
+        logPopup('error', 'Notion sync failed', { error: err.message });
         setStatus('Failed', 'error');
         LoadingManager.hide('saveToNotionBtn');
     }

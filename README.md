@@ -139,14 +139,25 @@ cd chats-export-to-notion
 ### New Features
 - ✅ **Notion OAuth2 Integration** - Secure authentication with automatic token refresh
 - ✅ **Platform Logos** - SVG logos in exported HTML/Markdown files
-- ✅ **Enhanced Logging** - Detailed console logs for debugging
+- ✅ **Enterprise Logging System** - Comprehensive debugging with storage
+- ✅ **Dev Tools Tab** - Built-in log viewer in Options page
 - ✅ **Better Error Messages** - User-friendly error descriptions
+
+### Developer Tools (v5.1)
+New debugging features for troubleshooting:
+
+- 🔧 **Debug Mode Toggle** - Enable/disable detailed logging
+- 📊 **Log Viewer** - View logs directly in Options → Dev Tools tab
+- 🔍 **Filtering** - Filter by level (Error/Warn/Info/Debug) and module
+- 📥 **Export Logs** - Download as JSON or text file
+- 🤖 **Copy for AI** - Generate AI-friendly debug reports
+- ⏰ **Auto-Refresh** - Real-time log updates (every 3 seconds)
 
 ### Code Quality
 - ✅ Comprehensive error handling across all adapters
 - ✅ Multiple fallback strategies for robustness
-- ✅ Improved code comments and documentation
-- ✅ Better separation of concerns
+- ✅ Enterprise logging with 30+ instrumentation points
+- ✅ Service worker keep-alive for MV3 compatibility
 
 ## 📁 Project Structure
 

@@ -284,6 +284,7 @@ async function handleExtraction(adapter, sendResponse) {
             }
         });
     } catch (error) {
+        if (typeof Logger !== 'undefined') Logger.error('Content', 'Extraction error', { error: error.message });
         console.error(`[OmniExporter] Extraction error:`, error);
         sendResponse({ success: false, error: error.message });
     }
@@ -310,6 +311,7 @@ async function handleExtractionByUuid(adapter, uuid, sendResponse) {
             }
         });
     } catch (error) {
+        if (typeof Logger !== 'undefined') Logger.error('Content', 'ExtractionByUuid error', { error: error.message, uuid });
         console.error(`[OmniExporter] ExtractionByUuid error:`, error);
         sendResponse({ success: false, error: error.message });
     }
