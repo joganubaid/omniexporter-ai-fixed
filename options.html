@@ -578,8 +578,8 @@
                             <!-- Platform Tests -->
                             <div class="test-section" style="margin-top: 16px;">
                                 <strong>🌐 Platform Tests</strong>
-                                <p style="font-size: 12px; color: var(--text-secondary); margin: 4px 0 8px 0;">Opens
-                                    browser tabs to test each platform (must be logged in)</p>
+                                <p style="font-size: 12px; color: var(--text-secondary); margin: 4px 0 8px 0;">Quick
+                                    connection test (uses existing tabs)</p>
                                 <div class="test-buttons" style="display: flex; flex-wrap: wrap; gap: 8px;">
                                     <button id="runAllPlatformTests" class="btn-small primary">🚀 Test All
                                         Platforms</button>
@@ -591,6 +591,22 @@
                                     <button id="testGrok" class="btn-small" data-platform="grok">Grok</button>
                                     <button id="testDeepSeek" class="btn-small"
                                         data-platform="deepseek">DeepSeek</button>
+                                </div>
+                            </div>
+
+                            <!-- Deep Platform Tests -->
+                            <div class="test-section" style="margin-top: 16px;">
+                                <strong>🔬 Deep Platform Tests</strong>
+                                <p style="font-size: 12px; color: var(--text-secondary); margin: 4px 0 8px 0;">Full
+                                    test: connection → threads → chat extraction → export formats → Notion</p>
+                                <div class="test-buttons" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                    <button id="runFullE2E" class="btn-small primary">🏆 Full E2E Suite</button>
+                                    <button class="btn-small" data-deep="perplexity">🔬 Perplexity</button>
+                                    <button class="btn-small" data-deep="chatgpt">🔬 ChatGPT</button>
+                                    <button class="btn-small" data-deep="claude">🔬 Claude</button>
+                                    <button class="btn-small" data-deep="gemini">🔬 Gemini</button>
+                                    <button class="btn-small" data-deep="grok">🔬 Grok</button>
+                                    <button class="btn-small" data-deep="deepseek">🔬 DeepSeek</button>
                                 </div>
                             </div>
 
@@ -629,6 +645,7 @@
 
     <script src="logger.js"></script>
     <script src="config.js"></script>
+    <script src="platform-config.js"></script>
     <script src="export-manager.js"></script>
     <script src="auth/notion-oauth.js"></script>
     <script src="options.js"></script>

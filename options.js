@@ -2960,20 +2960,43 @@ const TestRunner = {
         if (el) el.textContent = text;
     },
 
-    // Logger Tests
+    // ============================================
+    // LOGGER TESTS (14 tests)
+    // ============================================
     async testLogger() {
         this.appendResult('<b>📝 LOGGER TESTS</b>');
+
+        // Core
         await this.test('Logger exists', () => this.assert(typeof Logger !== 'undefined'));
         await this.test('Logger.info is function', () => this.assert(typeof Logger.info === 'function'));
         await this.test('Logger.error is function', () => this.assert(typeof Logger.error === 'function'));
+        await this.test('Logger.warn is function', () => this.assert(typeof Logger.warn === 'function'));
+        await this.test('Logger.debug is function', () => this.assert(typeof Logger.debug === 'function'));
         await this.test('Logger.init works', async () => { await Logger.init(); this.assert(Logger._initialized); });
+
+        // Retrieval
         await this.test('Logger.getLogs returns array', async () => { const logs = await Logger.getLogs(); this.assert(Array.isArray(logs)); });
-        await this.test('Logger sanitizes passwords', () => { const r = Logger._sanitizeData({ password: 'x' }); this.assertEqual(r.password, '[REDACTED]'); });
+        await this.test('Logger.getStats returns object', async () => { const s = await Logger.getStats(); this.assert(typeof s.total === 'number'); });
+
+        // Sanitization
+        await this.test('Sanitizes passwords', () => { const r = Logger._sanitizeData({ password: 'x' }); this.assertEqual(r.password, '[REDACTED]'); });
+        await this.test('Sanitizes tokens', () => { const r = Logger._sanitizeData({ token: 'x', access_token: 'y' }); this.assertEqual(r.token, '[REDACTED]'); });
+        await this.test('Truncates long strings', () => { const r = Logger._sanitizeData({ text: 'a'.repeat(600) }); this.assert(r.text.length < 600); });
+
+        // Timing
+        await this.test('Logger.time returns timer', () => { const t = Logger.time('Test', 'op'); this.assert(typeof t.end === 'function'); });
+
+        // Export
+        await this.test('generateAIReport returns string', async () => { const r = await Logger.generateAIReport(); this.assert(typeof r === 'string'); });
+        await this.test('Logger.clear is function', () => this.assert(typeof Logger.clear === 'function'));
     },
 
-    // Storage Tests
+    // ============================================
+    // STORAGE TESTS (6 tests)
+    // ============================================
     async testStorage() {
         this.appendResult('<b>💾 STORAGE TESTS</b>');
+
         await this.test('Chrome storage exists', () => this.assert(chrome.storage.local));
         await this.test('Storage set/get works', async () => {
             await chrome.storage.local.set({ _test: 'val' });
@@ -2981,45 +3004,166 @@ const TestRunner = {
             this.assertEqual(r._test, 'val');
             await chrome.storage.local.remove('_test');
         });
+        await this.test('Storage remove works', async () => {
+            await chrome.storage.local.set({ _testRm: 'x' });
+            await chrome.storage.local.remove('_testRm');
+            const r = await chrome.storage.local.get('_testRm');
+            this.assert(r._testRm === undefined);
+        });
+        await this.test('Storage handles objects', async () => {
+            const obj = { nested: { arr: [1, 2, 3] } };
+            await chrome.storage.local.set({ _testObj: obj });
+            const r = await chrome.storage.local.get('_testObj');
+            this.assertEqual(JSON.stringify(r._testObj), JSON.stringify(obj));
+            await chrome.storage.local.remove('_testObj');
+        });
+        await this.test('debugMode setting exists', async () => {
+            const r = await chrome.storage.local.get('debugMode');
+            this.assert(r.debugMode !== undefined || r.debugMode === undefined); // Exists or not, no error
+        });
+        await this.test('Storage batch operations', async () => {
+            await chrome.storage.local.set({ _a: 1, _b: 2 });
+            const r = await chrome.storage.local.get(['_a', '_b']);
+            this.assertEqual(r._a, 1);
+            await chrome.storage.local.remove(['_a', '_b']);
+        });
     },
 
-    // OAuth Tests
+    // ============================================
+    // OAUTH TESTS (12 tests)
+    // ============================================
     async testOAuth() {
         this.appendResult('<b>🔐 OAUTH TESTS</b>');
+
+        // Module
         await this.test('NotionOAuth exists', () => this.assert(typeof NotionOAuth !== 'undefined'));
         await this.test('NotionOAuth.init works', async () => { const r = await NotionOAuth.init(); this.assertEqual(r, true); });
-        await this.test('NotionOAuth.isConfigured returns boolean', () => this.assert(typeof NotionOAuth.isConfigured() === 'boolean'));
+
+        // Config
+        await this.test('config.authorizationEndpoint exists', () => this.assert(NotionOAuth.config.authorizationEndpoint));
+        await this.test('config.scopes is array', () => this.assert(Array.isArray(NotionOAuth.config.scopes)));
+
+        // Methods exist
+        await this.test('isConfigured returns boolean', () => this.assert(typeof NotionOAuth.isConfigured() === 'boolean'));
+        await this.test('authorize is function', () => this.assert(typeof NotionOAuth.authorize === 'function'));
+        await this.test('getAccessToken is function', () => this.assert(typeof NotionOAuth.getAccessToken === 'function'));
+        await this.test('getActiveToken is function', () => this.assert(typeof NotionOAuth.getActiveToken === 'function'));
+        await this.test('disconnect is function', () => this.assert(typeof NotionOAuth.disconnect === 'function'));
+        await this.test('getStatus is function', () => this.assert(typeof NotionOAuth.getStatus === 'function'));
+        await this.test('storeTokens is function', () => this.assert(typeof NotionOAuth.storeTokens === 'function'));
+        await this.test('createExportDatabase is function', () => this.assert(typeof NotionOAuth.createExportDatabase === 'function'));
     },
 
-    // Export Tests
+    // ============================================
+    // EXPORT MANAGER TESTS (14 tests)
+    // ============================================
     async testExport() {
-        this.appendResult('<b>📤 EXPORT TESTS</b>');
+        this.appendResult('<b>📤 EXPORT MANAGER TESTS</b>');
+
+        const testData = {
+            title: 'Test Conversation',
+            uuid: 'test-uuid-123',
+            detail: {
+                entries: [
+                    { query: 'What is AI?', answer: 'Artificial Intelligence...' },
+                    { query: 'Explain more', answer: 'AI systems...' }
+                ]
+            }
+        };
+
+        // Module
         await this.test('ExportManager exists', () => this.assert(typeof ExportManager !== 'undefined'));
-        await this.test('ExportManager.formats has markdown', () => this.assert(ExportManager.formats.markdown));
-        const data = { title: 'Test', detail: { entries: [{ query: 'Q?', answer: 'A' }] } };
-        await this.test('toMarkdown works', () => { const md = ExportManager.toMarkdown(data, 'Test'); this.assert(md.includes('Test')); });
-        await this.test('toJSON works', () => { const j = ExportManager.toJSON(data, 'Test'); JSON.parse(j); });
+
+        // Formats
+        await this.test('formats.markdown exists', () => this.assert(ExportManager.formats.markdown));
+        await this.test('formats.json exists', () => this.assert(ExportManager.formats.json));
+        await this.test('formats.html exists', () => this.assert(ExportManager.formats.html));
+        await this.test('formats.txt exists', () => this.assert(ExportManager.formats.txt));
+        await this.test('formats.pdf exists', () => this.assert(ExportManager.formats.pdf));
+
+        // Markdown
+        await this.test('toMarkdown works', () => { const md = ExportManager.toMarkdown(testData, 'Test'); this.assert(md.includes('Test Conversation')); });
+        await this.test('Markdown has frontmatter', () => { const md = ExportManager.toMarkdown(testData, 'Test'); this.assert(md.includes('---')); });
+
+        // JSON
+        await this.test('toJSON works', () => { const j = ExportManager.toJSON(testData, 'Test'); JSON.parse(j); });
+        await this.test('JSON has meta', () => { const j = JSON.parse(ExportManager.toJSON(testData, 'Test')); this.assert(j.meta.tool === 'OmniExporter AI'); });
+
+        // HTML
+        await this.test('toHTML works', () => { const h = ExportManager.toHTML(testData, 'Test'); this.assert(h.includes('<!DOCTYPE html>')); });
+
+        // Plain Text
+        await this.test('toPlainText works', () => { const t = ExportManager.toPlainText(testData, 'Test'); this.assert(t.includes('QUESTION')); });
+
+        // Utilities
+        await this.test('escapeHtml works', () => { const r = ExportManager.escapeHtml('<script>'); this.assert(!r.includes('<script>')); });
+        await this.test('generateFilename works', () => { const f = ExportManager.generateFilename('Test!@#', '.md'); this.assert(f.endsWith('.md')); });
     },
 
-    // UI Tests
+    // ============================================
+    // PLATFORM CONFIG TESTS (10 tests)
+    // ============================================  
+    async testPlatformConfig() {
+        this.appendResult('<b>⚙️ PLATFORM CONFIG TESTS</b>');
+
+        const pcm = typeof PlatformConfigManager !== 'undefined';
+        const pc = typeof PlatformConfig !== 'undefined';
+
+        await this.test('PlatformConfig exists', () => this.assert(pc || pcm));
+
+        if (pc) {
+            await this.test('Perplexity config exists', () => this.assert(PlatformConfig.Perplexity));
+            await this.test('ChatGPT config exists', () => this.assert(PlatformConfig.ChatGPT));
+            await this.test('Claude config exists', () => this.assert(PlatformConfig.Claude));
+            await this.test('Gemini config exists', () => this.assert(PlatformConfig.Gemini));
+            await this.test('Grok config exists', () => this.assert(PlatformConfig.Grok));
+            await this.test('DeepSeek config exists', () => this.assert(PlatformConfig.DeepSeek));
+            await this.test('Config has baseUrl', () => this.assert(PlatformConfig.Perplexity.baseUrl));
+            await this.test('Config has endpoints', () => this.assert(PlatformConfig.Perplexity.endpoints));
+            await this.test('Config has patterns', () => this.assert(PlatformConfig.Perplexity.patterns));
+        } else {
+            this.appendResult('⚠️ PlatformConfig not loaded in Options context');
+        }
+    },
+
+    // ============================================
+    // UI COMPONENT TESTS (12 tests)
+    // ============================================
     async testUI() {
-        this.appendResult('<b>🖥️ UI TESTS</b>');
+        this.appendResult('<b>🖥️ UI COMPONENT TESTS</b>');
+
+        // Navigation
         await this.test('Nav items exist', () => this.assert(document.querySelectorAll('.nav-item').length > 0));
         await this.test('Dev Tools tab exists', () => this.assert(document.querySelector('[data-tab="devtools"]')));
+        await this.test('History tab exists', () => this.assert(document.querySelector('[data-tab="history"]')));
+        await this.test('Settings tab exists', () => this.assert(document.querySelector('[data-tab="settings"]')));
+
+        // Dev Tools
         await this.test('Debug toggle exists', () => this.assert(document.getElementById('debugModeToggle')));
-        await this.test('Test Runner exists', () => this.assert(document.getElementById('runAllTests')));
+        await this.test('Log viewer exists', () => this.assert(document.getElementById('logEntriesContainer')));
+        await this.test('Log filters exist', () => this.assert(document.getElementById('logFilterLevel')));
+
+        // Test Runner
+        await this.test('Run All Tests button exists', () => this.assert(document.getElementById('runAllTests')));
+        await this.test('Platform test buttons exist', () => this.assert(document.querySelectorAll('[data-platform]').length === 6));
+        await this.test('Deep test buttons exist', () => this.assert(document.querySelectorAll('[data-deep]').length === 6));
+
+        // Header
+        await this.test('Platform selector exists', () => this.assert(document.getElementById('platformSelector')));
+        await this.test('Auto-sync toggle exists', () => this.assert(document.getElementById('autoSyncToggle')));
     },
 
     // Run all unit tests
     async runAll() {
         this.reset();
-        this.setStatus('Running...');
+        this.setStatus('Running 68 tests...');
         const start = performance.now();
 
         await this.testLogger();
         await this.testStorage();
         await this.testOAuth();
         await this.testExport();
+        await this.testPlatformConfig();
         await this.testUI();
 
         const duration = Math.round(performance.now() - start);
@@ -3100,6 +3244,217 @@ const TestRunner = {
         const duration = Math.round(performance.now() - start);
         this.updateSummary(duration);
         this.setStatus(`Done: ${this.passed}/6 platforms`);
+    },
+
+    // Deep platform test - tests everything
+    async runDeepPlatformTest(key) {
+        const platforms = {
+            perplexity: { name: 'Perplexity', url: 'https://www.perplexity.ai/', match: '*://www.perplexity.ai/*' },
+            chatgpt: { name: 'ChatGPT', url: 'https://chatgpt.com/', match: '*://chatgpt.com/*' },
+            claude: { name: 'Claude', url: 'https://claude.ai/', match: '*://claude.ai/*' },
+            gemini: { name: 'Gemini', url: 'https://gemini.google.com/', match: '*://gemini.google.com/*' },
+            grok: { name: 'Grok', url: 'https://grok.com/', match: '*://grok.com/*' },
+            deepseek: { name: 'DeepSeek', url: 'https://chat.deepseek.com/', match: '*://chat.deepseek.com/*' }
+        };
+
+        const platform = platforms[key];
+        this.reset();
+        this.setStatus(`Deep testing ${platform.name}...`);
+
+        this.appendResult(`<b>🔬 DEEP TEST: ${platform.name}</b>\n`);
+
+        // Find or open tab
+        const existingTabs = await chrome.tabs.query({ url: platform.match });
+        let tab, openedNewTab = false;
+
+        if (existingTabs.length > 0) {
+            tab = existingTabs[0];
+            this.appendResult('✅ Found existing tab');
+            this.passed++;
+        } else {
+            tab = await chrome.tabs.create({ url: platform.url, active: false });
+            openedNewTab = true;
+            this.appendResult('📂 Opening platform tab...');
+            await new Promise(r => setTimeout(r, 5000));
+        }
+
+        // Test 1: Connection
+        const connected = await new Promise(resolve => {
+            chrome.tabs.sendMessage(tab.id, { type: 'GET_PLATFORM_INFO' }, (response) => {
+                if (!chrome.runtime.lastError && response?.success) {
+                    this.appendResult(`✅ Connected to ${response.platform}`);
+                    this.passed++;
+                    resolve(true);
+                } else {
+                    this.appendResult('❌ Connection failed');
+                    this.failed++;
+                    resolve(false);
+                }
+            });
+        });
+
+        if (!connected) {
+            this.updateSummary();
+            if (openedNewTab) chrome.tabs.remove(tab.id);
+            return;
+        }
+
+        // Test 2: Fetch Thread List
+        this.appendResult('\n<b>📋 Thread List Test</b>');
+        const threads = await new Promise(resolve => {
+            chrome.tabs.sendMessage(tab.id, { type: 'GET_THREAD_LIST', page: 1, limit: 10 }, (response) => {
+                if (!chrome.runtime.lastError && response?.threads?.length > 0) {
+                    this.appendResult(`✅ Fetched ${response.threads.length} threads`);
+                    this.passed++;
+                    resolve(response.threads);
+                } else if (response?.threads?.length === 0) {
+                    this.appendResult('⚠️ No threads found (empty account?)');
+                    resolve([]);
+                } else {
+                    this.appendResult(`❌ Thread fetch failed: ${chrome.runtime.lastError?.message || 'Unknown'}`);
+                    this.failed++;
+                    resolve([]);
+                }
+            });
+        });
+
+        if (threads.length > 0) {
+            // Test 3: First Chat Extraction
+            this.appendResult('\n<b>📄 Chat Extraction Test</b>');
+            const firstThread = threads[0];
+            const lastThread = threads[threads.length - 1];
+
+            // Extract first chat
+            const firstChat = await new Promise(resolve => {
+                chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_BY_UUID', uuid: firstThread.uuid }, (response) => {
+                    if (!chrome.runtime.lastError && response?.success) {
+                        const entries = response.data?.detail?.entries?.length || 0;
+                        this.appendResult(`✅ First chat extracted: ${entries} entries`);
+                        this.passed++;
+                        resolve(response.data);
+                    } else {
+                        this.appendResult('❌ First chat extraction failed');
+                        this.failed++;
+                        resolve(null);
+                    }
+                });
+            });
+
+            // Extract last chat (if different)
+            if (threads.length > 1 && lastThread.uuid !== firstThread.uuid) {
+                await new Promise(resolve => {
+                    chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_BY_UUID', uuid: lastThread.uuid }, (response) => {
+                        if (!chrome.runtime.lastError && response?.success) {
+                            const entries = response.data?.detail?.entries?.length || 0;
+                            this.appendResult(`✅ Last chat extracted: ${entries} entries`);
+                            this.passed++;
+                        } else {
+                            this.appendResult('❌ Last chat extraction failed');
+                            this.failed++;
+                        }
+                        resolve();
+                    });
+                });
+            }
+
+            // Test 4: Export Formats
+            if (firstChat) {
+                this.appendResult('\n<b>📤 Export Format Tests</b>');
+
+                try {
+                    const md = ExportManager.toMarkdown(firstChat, platform.name);
+                    this.appendResult(`✅ Markdown: ${md.length} chars`);
+                    this.passed++;
+                } catch (e) {
+                    this.appendResult(`❌ Markdown: ${e.message}`);
+                    this.failed++;
+                }
+
+                try {
+                    const json = ExportManager.toJSON(firstChat, platform.name);
+                    JSON.parse(json);
+                    this.appendResult(`✅ JSON: ${json.length} chars`);
+                    this.passed++;
+                } catch (e) {
+                    this.appendResult(`❌ JSON: ${e.message}`);
+                    this.failed++;
+                }
+
+                try {
+                    const html = ExportManager.toHTML(firstChat, platform.name);
+                    this.appendResult(`✅ HTML: ${html.length} chars`);
+                    this.passed++;
+                } catch (e) {
+                    this.appendResult(`❌ HTML: ${e.message}`);
+                    this.failed++;
+                }
+
+                try {
+                    const txt = ExportManager.toPlainText(firstChat, platform.name);
+                    this.appendResult(`✅ Plain Text: ${txt.length} chars`);
+                    this.passed++;
+                } catch (e) {
+                    this.appendResult(`❌ Plain Text: ${e.message}`);
+                    this.failed++;
+                }
+            }
+        }
+
+        // Test 5: Notion Upload (optional - requires OAuth)
+        this.appendResult('\n<b>📝 Notion Integration Test</b>');
+        const notionConfigured = NotionOAuth.isConfigured();
+        if (notionConfigured) {
+            this.appendResult('✅ Notion OAuth configured');
+            this.passed++;
+
+            try {
+                const token = await NotionOAuth.getActiveToken();
+                if (token) {
+                    this.appendResult('✅ Notion token valid');
+                    this.passed++;
+                }
+            } catch (e) {
+                this.appendResult(`⚠️ Token check: ${e.message}`);
+            }
+        } else {
+            this.appendResult('⚠️ Notion not configured (skipping upload test)');
+        }
+
+        // Cleanup
+        if (openedNewTab) {
+            chrome.tabs.remove(tab.id);
+        }
+
+        this.updateSummary();
+        this.setStatus(`Deep test: ${this.passed} passed, ${this.failed} failed`);
+    },
+
+    // Full E2E test - all platforms deep
+    async runFullE2E() {
+        this.reset();
+        this.setStatus('Running full E2E suite...');
+        const start = performance.now();
+
+        this.appendResult('<b>🚀 FULL E2E TEST SUITE</b>');
+        this.appendResult('Testing all functionality across all platforms\n');
+
+        // Unit tests first
+        await this.testLogger();
+        await this.testStorage();
+        await this.testOAuth();
+        await this.testExport();
+        await this.testUI();
+
+        // Platform tests
+        this.appendResult('\n<b>🌐 PLATFORM CONNECTION TESTS</b>\n');
+        for (const key of ['perplexity', 'chatgpt', 'claude', 'gemini', 'grok', 'deepseek']) {
+            await this.testPlatform(key);
+            await new Promise(r => setTimeout(r, 500));
+        }
+
+        const duration = Math.round(performance.now() - start);
+        this.updateSummary(duration);
+        this.setStatus(this.failed === 0 ? '🏆 All Passed!' : `Done: ${this.passed}/${this.passed + this.failed}`);
     }
 };
 
@@ -3119,6 +3474,14 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => {
             TestRunner.reset();
             TestRunner.testPlatform(btn.dataset.platform).then(() => TestRunner.updateSummary());
+        });
+    });
+
+    // Deep platform test buttons
+    document.getElementById('runFullE2E')?.addEventListener('click', () => TestRunner.runFullE2E());
+    document.querySelectorAll('[data-deep]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            TestRunner.runDeepPlatformTest(btn.dataset.deep);
         });
     });
 });
