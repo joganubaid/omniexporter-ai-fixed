@@ -2904,3 +2904,221 @@ document.addEventListener('visibilitychange', () => {
         startLogAutoRefresh();
     }
 });
+
+// ============================================
+// TEST RUNNER - INTEGRATED TEST SUITE
+// ============================================
+const TestRunner = {
+    results: [],
+    passed: 0,
+    failed: 0,
+
+    // Test utilities
+    async test(name, fn) {
+        try {
+            await fn();
+            this.passed++;
+            this.results.push({ name, status: 'passed' });
+            this.appendResult(`✅ ${name}`);
+            return true;
+        } catch (e) {
+            this.failed++;
+            this.results.push({ name, status: 'failed', error: e.message });
+            this.appendResult(`❌ ${name}: ${e.message}`);
+            return false;
+        }
+    },
+
+    assert(cond, msg) { if (!cond) throw new Error(msg || 'Assertion failed'); },
+    assertEqual(a, b, msg) { if (a !== b) throw new Error(msg || `Expected ${b}, got ${a}`); },
+
+    reset() {
+        this.results = [];
+        this.passed = 0;
+        this.failed = 0;
+        const container = document.getElementById('testResults');
+        if (container) container.innerHTML = '';
+        document.getElementById('testResultsContainer').style.display = 'block';
+    },
+
+    appendResult(text) {
+        const container = document.getElementById('testResults');
+        if (container) {
+            container.innerHTML += text + '<br>';
+            container.scrollTop = container.scrollHeight;
+        }
+    },
+
+    updateSummary(duration = 0) {
+        document.getElementById('testsPassed').textContent = this.passed;
+        document.getElementById('testsFailed').textContent = this.failed;
+        document.getElementById('testsDuration').textContent = duration + 'ms';
+    },
+
+    setStatus(text) {
+        const el = document.getElementById('testRunnerStatus');
+        if (el) el.textContent = text;
+    },
+
+    // Logger Tests
+    async testLogger() {
+        this.appendResult('<b>📝 LOGGER TESTS</b>');
+        await this.test('Logger exists', () => this.assert(typeof Logger !== 'undefined'));
+        await this.test('Logger.info is function', () => this.assert(typeof Logger.info === 'function'));
+        await this.test('Logger.error is function', () => this.assert(typeof Logger.error === 'function'));
+        await this.test('Logger.init works', async () => { await Logger.init(); this.assert(Logger._initialized); });
+        await this.test('Logger.getLogs returns array', async () => { const logs = await Logger.getLogs(); this.assert(Array.isArray(logs)); });
+        await this.test('Logger sanitizes passwords', () => { const r = Logger._sanitizeData({ password: 'x' }); this.assertEqual(r.password, '[REDACTED]'); });
+    },
+
+    // Storage Tests
+    async testStorage() {
+        this.appendResult('<b>💾 STORAGE TESTS</b>');
+        await this.test('Chrome storage exists', () => this.assert(chrome.storage.local));
+        await this.test('Storage set/get works', async () => {
+            await chrome.storage.local.set({ _test: 'val' });
+            const r = await chrome.storage.local.get('_test');
+            this.assertEqual(r._test, 'val');
+            await chrome.storage.local.remove('_test');
+        });
+    },
+
+    // OAuth Tests
+    async testOAuth() {
+        this.appendResult('<b>🔐 OAUTH TESTS</b>');
+        await this.test('NotionOAuth exists', () => this.assert(typeof NotionOAuth !== 'undefined'));
+        await this.test('NotionOAuth.init works', async () => { const r = await NotionOAuth.init(); this.assertEqual(r, true); });
+        await this.test('NotionOAuth.isConfigured returns boolean', () => this.assert(typeof NotionOAuth.isConfigured() === 'boolean'));
+    },
+
+    // Export Tests
+    async testExport() {
+        this.appendResult('<b>📤 EXPORT TESTS</b>');
+        await this.test('ExportManager exists', () => this.assert(typeof ExportManager !== 'undefined'));
+        await this.test('ExportManager.formats has markdown', () => this.assert(ExportManager.formats.markdown));
+        const data = { title: 'Test', detail: { entries: [{ query: 'Q?', answer: 'A' }] } };
+        await this.test('toMarkdown works', () => { const md = ExportManager.toMarkdown(data, 'Test'); this.assert(md.includes('Test')); });
+        await this.test('toJSON works', () => { const j = ExportManager.toJSON(data, 'Test'); JSON.parse(j); });
+    },
+
+    // UI Tests
+    async testUI() {
+        this.appendResult('<b>🖥️ UI TESTS</b>');
+        await this.test('Nav items exist', () => this.assert(document.querySelectorAll('.nav-item').length > 0));
+        await this.test('Dev Tools tab exists', () => this.assert(document.querySelector('[data-tab="devtools"]')));
+        await this.test('Debug toggle exists', () => this.assert(document.getElementById('debugModeToggle')));
+        await this.test('Test Runner exists', () => this.assert(document.getElementById('runAllTests')));
+    },
+
+    // Run all unit tests
+    async runAll() {
+        this.reset();
+        this.setStatus('Running...');
+        const start = performance.now();
+
+        await this.testLogger();
+        await this.testStorage();
+        await this.testOAuth();
+        await this.testExport();
+        await this.testUI();
+
+        const duration = Math.round(performance.now() - start);
+        this.updateSummary(duration);
+        this.setStatus(this.failed === 0 ? '✅ All Passed!' : `❌ ${this.failed} Failed`);
+    },
+
+    // Platform test helper
+    async testPlatform(key) {
+        const platforms = {
+            perplexity: { name: 'Perplexity', url: 'https://www.perplexity.ai/', match: '*://www.perplexity.ai/*' },
+            chatgpt: { name: 'ChatGPT', url: 'https://chatgpt.com/', match: '*://chatgpt.com/*' },
+            claude: { name: 'Claude', url: 'https://claude.ai/', match: '*://claude.ai/*' },
+            gemini: { name: 'Gemini', url: 'https://gemini.google.com/', match: '*://gemini.google.com/*' },
+            grok: { name: 'Grok', url: 'https://grok.com/', match: '*://grok.com/*' },
+            deepseek: { name: 'DeepSeek', url: 'https://chat.deepseek.com/', match: '*://chat.deepseek.com/*' }
+        };
+
+        const platform = platforms[key];
+        this.appendResult(`<b>🌐 Testing ${platform.name}...</b>`);
+
+        try {
+            // Check if tab is already open
+            const existingTabs = await chrome.tabs.query({ url: platform.match });
+            let tab;
+            let openedNewTab = false;
+
+            if (existingTabs.length > 0) {
+                // Use existing tab
+                tab = existingTabs[0];
+                this.appendResult(`   ↳ Using existing tab`);
+            } else {
+                // Open new tab
+                tab = await chrome.tabs.create({ url: platform.url, active: false });
+                openedNewTab = true;
+                this.appendResult(`   ↳ Opening new tab...`);
+                await new Promise(r => setTimeout(r, 5000));
+            }
+
+            return new Promise((resolve) => {
+                chrome.tabs.sendMessage(tab.id, { type: 'GET_PLATFORM_INFO' }, async (response) => {
+                    if (chrome.runtime.lastError || !response?.success) {
+                        this.appendResult(`❌ ${platform.name}: Not connected`);
+                        this.failed++;
+                    } else {
+                        this.appendResult(`✅ ${platform.name}: Connected`);
+                        this.passed++;
+                    }
+
+                    // Only close tabs we opened
+                    if (openedNewTab) {
+                        await new Promise(r => setTimeout(r, 1000));
+                        chrome.tabs.remove(tab.id);
+                    }
+                    resolve();
+                });
+            });
+        } catch (e) {
+            this.appendResult(`❌ ${platform.name}: ${e.message}`);
+            this.failed++;
+        }
+    },
+
+    // Test all platforms
+    async runAllPlatforms() {
+        this.reset();
+        this.setStatus('Testing platforms...');
+        const start = performance.now();
+
+        this.appendResult('<b>🌐 PLATFORM TESTS</b>');
+        this.appendResult('Note: You must be logged into each platform\n');
+
+        for (const key of ['perplexity', 'chatgpt', 'claude', 'gemini', 'grok', 'deepseek']) {
+            await this.testPlatform(key);
+            await new Promise(r => setTimeout(r, 500));
+        }
+
+        const duration = Math.round(performance.now() - start);
+        this.updateSummary(duration);
+        this.setStatus(`Done: ${this.passed}/6 platforms`);
+    }
+};
+
+// Wire up test runner buttons
+document.addEventListener('DOMContentLoaded', () => {
+    // Unit test buttons
+    document.getElementById('runAllTests')?.addEventListener('click', () => TestRunner.runAll());
+    document.getElementById('runLoggerTests')?.addEventListener('click', () => { TestRunner.reset(); TestRunner.testLogger().then(() => TestRunner.updateSummary()); });
+    document.getElementById('runStorageTests')?.addEventListener('click', () => { TestRunner.reset(); TestRunner.testStorage().then(() => TestRunner.updateSummary()); });
+    document.getElementById('runOAuthTests')?.addEventListener('click', () => { TestRunner.reset(); TestRunner.testOAuth().then(() => TestRunner.updateSummary()); });
+    document.getElementById('runExportTests')?.addEventListener('click', () => { TestRunner.reset(); TestRunner.testExport().then(() => TestRunner.updateSummary()); });
+    document.getElementById('runUITests')?.addEventListener('click', () => { TestRunner.reset(); TestRunner.testUI().then(() => TestRunner.updateSummary()); });
+
+    // Platform test buttons
+    document.getElementById('runAllPlatformTests')?.addEventListener('click', () => TestRunner.runAllPlatforms());
+    document.querySelectorAll('[data-platform]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            TestRunner.reset();
+            TestRunner.testPlatform(btn.dataset.platform).then(() => TestRunner.updateSummary());
+        });
+    });
+});

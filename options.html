@@ -550,6 +550,64 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Test Runner -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>🧪 Test Runner</h3>
+                            <span id="testRunnerStatus" class="test-status"></span>
+                        </div>
+                        <div class="card-body">
+                            <p style="margin-bottom: 12px; color: var(--text-secondary);">Run automated tests to verify
+                                all extension features are working correctly.</p>
+
+                            <!-- Unit Tests -->
+                            <div class="test-section">
+                                <strong>📋 Unit Tests</strong>
+                                <div class="test-buttons"
+                                    style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px;">
+                                    <button id="runAllTests" class="btn-small primary">▶️ Run All Tests</button>
+                                    <button id="runLoggerTests" class="btn-small">Logger</button>
+                                    <button id="runStorageTests" class="btn-small">Storage</button>
+                                    <button id="runOAuthTests" class="btn-small">OAuth</button>
+                                    <button id="runExportTests" class="btn-small">Export</button>
+                                    <button id="runUITests" class="btn-small">UI</button>
+                                </div>
+                            </div>
+
+                            <!-- Platform Tests -->
+                            <div class="test-section" style="margin-top: 16px;">
+                                <strong>🌐 Platform Tests</strong>
+                                <p style="font-size: 12px; color: var(--text-secondary); margin: 4px 0 8px 0;">Opens
+                                    browser tabs to test each platform (must be logged in)</p>
+                                <div class="test-buttons" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                    <button id="runAllPlatformTests" class="btn-small primary">🚀 Test All
+                                        Platforms</button>
+                                    <button id="testPerplexity" class="btn-small"
+                                        data-platform="perplexity">Perplexity</button>
+                                    <button id="testChatGPT" class="btn-small" data-platform="chatgpt">ChatGPT</button>
+                                    <button id="testClaude" class="btn-small" data-platform="claude">Claude</button>
+                                    <button id="testGemini" class="btn-small" data-platform="gemini">Gemini</button>
+                                    <button id="testGrok" class="btn-small" data-platform="grok">Grok</button>
+                                    <button id="testDeepSeek" class="btn-small"
+                                        data-platform="deepseek">DeepSeek</button>
+                                </div>
+                            </div>
+
+                            <!-- Test Results -->
+                            <div id="testResultsContainer" style="margin-top: 16px; display: none;">
+                                <strong>📊 Test Results</strong>
+                                <div id="testResults" class="test-results"
+                                    style="margin-top: 8px; padding: 12px; background: var(--bg-tertiary); border-radius: 8px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px;">
+                                </div>
+                                <div class="test-summary" style="margin-top: 8px; display: flex; gap: 16px;">
+                                    <span>✅ Passed: <strong id="testsPassed">0</strong></span>
+                                    <span>❌ Failed: <strong id="testsFailed">0</strong></span>
+                                    <span>⏱️ Duration: <strong id="testsDuration">0ms</strong></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </section>
             </div>
         </main>
@@ -571,6 +629,7 @@
 
     <script src="logger.js"></script>
     <script src="config.js"></script>
+    <script src="export-manager.js"></script>
     <script src="auth/notion-oauth.js"></script>
     <script src="options.js"></script>
 </body>
