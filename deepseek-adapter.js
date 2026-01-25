@@ -384,11 +384,11 @@ const DeepSeekAdapter = {
 
                     if (!content.trim()) return;
 
-                    const isUser = role === 'USER' || role === 'HUMAN' || 
-                                 (role === '' && idx % 2 === 0);
-                    const isAssistant = role === 'ASSISTANT' || role === 'BOT' || 
-                                       role === 'DEEPSEEK' || role === 'AI' ||
-                                       (role === '' && idx % 2 === 1);
+                    const isUser = role === 'USER' || role === 'HUMAN' ||
+                        (role === '' && idx % 2 === 0);
+                    const isAssistant = role === 'ASSISTANT' || role === 'BOT' ||
+                        role === 'DEEPSEEK' || role === 'AI' ||
+                        (role === '' && idx % 2 === 1);
 
                     if (isUser) {
                         currentQuery = content.trim();
@@ -401,12 +401,12 @@ const DeepSeekAdapter = {
                 if (entries.length > 0) {
                     // Get title from multiple possible locations
                     title = data?.data?.biz_data?.chat_session?.title ||
-                           data?.biz_data?.chat_session?.title ||
-                           data?.data?.title ||
-                           data?.title ||
-                           data?.chat_session?.title ||
-                           entries[0]?.query?.substring(0, 100) ||
-                           `DeepSeek Thread ${uuid.slice(0, 8)}`;
+                        data?.biz_data?.chat_session?.title ||
+                        data?.data?.title ||
+                        data?.title ||
+                        data?.chat_session?.title ||
+                        entries[0]?.query?.substring(0, 100) ||
+                        `DeepSeek Thread ${uuid.slice(0, 8)}`;
 
                     console.log(`[DeepSeek] ✓ API success: ${entries.length} Q&A pairs for: ${title}`);
                     return { uuid, title, platform: 'DeepSeek', entries };
@@ -417,144 +417,13 @@ const DeepSeekAdapter = {
             }
         }
 
-        // DOM fallback
-        console.warn(`[DeepSeek] All API endpoints failed, using DOM extraction`);
-        return DeepSeekAdapter.extractFromDOM(uuid);
+        // All API endpoints failed
+        console.error(`[DeepSeek] All API endpoints failed`);
+        throw new Error('DeepSeek API unreachable - Check login or try refreshing');
     },
 
-    // ============================================
-    // DOM Fallback - FIXED: Updated selectors for latest DeepSeek UI
-    // ============================================
-    extractFromDOM: (uuid) => {
-        console.log('[DeepSeek] Starting DOM extraction...');
-        const messages = [];
 
-        // Strategy 1: Modern DeepSeek UI - data-message-role or data-role attributes
-        const roleElements = document.querySelectorAll('[data-message-role], [data-role]');
-        if (roleElements.length > 0) {
-            console.log(`[DeepSeek] Strategy 1: Found ${roleElements.length} role-based elements`);
-            
-            let currentQuery = '';
-            roleElements.forEach(el => {
-                const role = (el.getAttribute('data-message-role') || el.getAttribute('data-role') || '').toUpperCase();
-                const text = el.textContent?.trim() || '';
 
-                if (text.length > 5) {
-                    if (role === 'USER' || role === 'HUMAN') {
-                        currentQuery = text;
-                    } else if ((role === 'ASSISTANT' || role === 'BOT' || role === 'AI') && currentQuery) {
-                        messages.push({ query: currentQuery, answer: text });
-                        currentQuery = '';
-                    }
-                }
-            });
-        }
-
-        // Strategy 2: Class-based message detection
-        if (messages.length === 0) {
-            console.log('[DeepSeek] Strategy 2: Class-based detection');
-            
-            const userSelectors = [
-                '[class*="user-message"]',
-                '[class*="human-message"]',
-                '[class*="UserMessage"]',
-                '.message-user',
-                '.chat-message-user'
-            ];
-            const assistantSelectors = [
-                '[class*="assistant-message"]',
-                '[class*="ai-message"]',
-                '[class*="AssistantMessage"]',
-                '.message-assistant',
-                '.chat-message-assistant',
-                '[class*="deepseek-message"]'
-            ];
-
-            let userEls = [], assistantEls = [];
-            
-            for (const sel of userSelectors) {
-                const found = document.querySelectorAll(sel);
-                if (found.length > 0) {
-                    userEls = Array.from(found);
-                    console.log(`[DeepSeek] Found ${userEls.length} user messages with selector: ${sel}`);
-                    break;
-                }
-            }
-            
-            for (const sel of assistantSelectors) {
-                const found = document.querySelectorAll(sel);
-                if (found.length > 0) {
-                    assistantEls = Array.from(found);
-                    console.log(`[DeepSeek] Found ${assistantEls.length} assistant messages with selector: ${sel}`);
-                    break;
-                }
-            }
-
-            const maxLen = Math.max(userEls.length, assistantEls.length);
-            for (let i = 0; i < maxLen; i++) {
-                const query = userEls[i]?.textContent?.trim() || '';
-                const answer = assistantEls[i]?.textContent?.trim() || '';
-                if (query || answer) {
-                    messages.push({ query, answer });
-                }
-            }
-        }
-
-        // Strategy 3: Markdown/prose containers (alternating pattern)
-        if (messages.length === 0) {
-            console.log('[DeepSeek] Strategy 3: Markdown containers');
-            
-            const markdownBlocks = document.querySelectorAll(
-                '[class*="markdown"], [class*="prose"], [class*="message-content"], .chat-content'
-            );
-            
-            if (markdownBlocks.length > 0) {
-                let currentQuery = '';
-                markdownBlocks.forEach((block, i) => {
-                    const text = block.textContent?.trim() || '';
-                    if (text.length > 10) {
-                        if (i % 2 === 0) {
-                            currentQuery = text;
-                        } else if (currentQuery) {
-                            messages.push({ query: currentQuery, answer: text });
-                            currentQuery = '';
-                        }
-                    }
-                });
-            }
-        }
-
-        // Strategy 4: Generic text blocks in main container
-        if (messages.length === 0) {
-            console.log('[DeepSeek] Strategy 4: Generic text extraction');
-            
-            const container = document.querySelector('.chat-container, .conversation-container, main');
-            if (container) {
-                const textBlocks = [];
-                const elements = container.querySelectorAll('p, div[class*="text"]');
-                
-                elements.forEach(el => {
-                    const text = el.textContent?.trim();
-                    if (text && text.length > 20 && !textBlocks.includes(text)) {
-                        textBlocks.push(text);
-                    }
-                });
-
-                for (let i = 0; i < textBlocks.length - 1; i += 2) {
-                    messages.push({ query: textBlocks[i], answer: textBlocks[i + 1] });
-                }
-            }
-        }
-
-        const filteredMessages = messages.filter(m => m.query?.trim() && m.answer?.trim());
-        console.log(`[DeepSeek] ✓ DOM extraction complete: ${filteredMessages.length} message pairs`);
-
-        const title = document.title?.replace(' - DeepSeek', '').replace('DeepSeek Chat', '').trim() ||
-                     filteredMessages[0]?.query?.substring(0, 100) ||
-                     'DeepSeek Conversation';
-
-        return { uuid, title, platform: 'DeepSeek', entries: filteredMessages };
-    },
 
     getSpaces: async () => []
 };

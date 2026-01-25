@@ -280,7 +280,8 @@ async function handleExtraction(adapter, sendResponse) {
                 title: title,
                 uuid: uuid,
                 detail: { entries: normalizedEntries },
-                platform: adapter.name
+                platform: adapter.name,
+                debug: detail.debug
             }
         });
     } catch (error) {
@@ -307,7 +308,8 @@ async function handleExtractionByUuid(adapter, uuid, sendResponse) {
                 title: title,
                 uuid: uuid,
                 detail: { entries: normalizedEntries },
-                platform: adapter.name
+                platform: adapter.name,
+                debug: detail.debug
             }
         });
     } catch (error) {
@@ -597,6 +599,18 @@ const PerplexityAdapter = {
         return platformConfig.extractUuid('Perplexity', url);
     },
 
+    /**
+     * Parse entries from partial JSON response
+     */
+    _parseEntries: (json) => {
+        // Handle various Perplexity API response formats
+        if (Array.isArray(json)) return json;
+        if (json.entries) return json.entries;
+        if (json.results) return json.results;
+        if (json.data) return json.data;
+        return [];
+    },
+
     getThreads: async (page, limit, spaceId = null) => {
         try {
             // Build endpoint using config
@@ -710,6 +724,18 @@ const ChatGPTAdapter = {
         }
 
         return headers;
+    },
+
+    /**
+     * Restore Auth from __NEXT_DATA__ if needed
+     */
+    _refreshAuth: () => {
+        const nextData = extractFromNextData();
+        if (nextData?.props?.pageProps?.user?.id) {
+            console.log('[ChatGPT] Verified Next.js Auth User:', nextData.props.pageProps.user.id);
+            // Could potentially extract tokens here if exposed
+        }
+        return true;
     },
 
     // ============================================
@@ -864,10 +890,12 @@ const ChatGPTAdapter = {
                 page
             };
         } catch (error) {
-            console.error('[ChatGPT] getThreads error:', error);
+            console.error('[ChatGPT] getThreads API failed:', error);
             throw error;
         }
     },
+
+
 
     // ============================================
     // ENTERPRISE: Resilient thread detail fetching
@@ -908,121 +936,18 @@ const ChatGPTAdapter = {
             }
         }
 
-        // Strategy 2: Check if this is the current conversation
-        const isCurrentConversation = window.location.href.includes(uuid);
-        if (isCurrentConversation) {
-            console.log('[ChatGPT] Falling back to DOM extraction for current conversation');
-            return ChatGPTAdapter.extractFromDOM(uuid);
-        }
-
-        // Strategy 3: Return helpful error
+        // Strategy 2: Return helpful error if API fails
         console.error('[ChatGPT] All API endpoints failed for conversation:', uuid);
         return {
             uuid,
             title: 'Unable to fetch - API error',
             platform: 'ChatGPT',
             entries: [],
-            error: 'All API endpoints failed. Try opening the conversation in your browser first, then export again.'
+            error: 'All API endpoints failed. Please check your login status.'
         };
     },
 
-    /**
-     * Extract messages from DOM when API fails
-     * FIXED: Updated selectors for latest ChatGPT UI (2024+)
-     */
-    extractFromDOM: (uuid) => {
-        console.log('[ChatGPT] Starting DOM extraction...');
-        const messages = [];
 
-        // Strategy 1: Modern ChatGPT UI - data-message-author-role attribute
-        const messageContainers = document.querySelectorAll('[data-message-author-role]');
-        if (messageContainers.length > 0) {
-            console.log(`[ChatGPT] Strategy 1: Found ${messageContainers.length} messages with data-message-author-role`);
-
-            let currentQuery = '';
-            messageContainers.forEach(container => {
-                const role = container.getAttribute('data-message-author-role');
-                const text = container.innerText?.trim() || '';
-
-                if (text.length > 5) {
-                    if (role === 'user') {
-                        currentQuery = text;
-                    } else if (role === 'assistant' && currentQuery) {
-                        messages.push({ query: currentQuery, answer: text });
-                        currentQuery = '';
-                    }
-                }
-            });
-        }
-
-        // Strategy 2: Article elements with role detection
-        if (messages.length === 0) {
-            const articles = document.querySelectorAll('article, [data-testid*="conversation-turn"]');
-            console.log(`[ChatGPT] Strategy 2: Found ${articles.length} articles`);
-
-            let currentQuery = '';
-            articles.forEach((article) => {
-                const text = article.innerText?.trim() || '';
-                if (text.length < 10) return;
-
-                // Check for role indicators in parent or article itself
-                const isUser = article.closest('[data-message-author-role="user"]') ||
-                    article.querySelector('[data-message-author-role="user"]') ||
-                    text.toLowerCase().includes('you said');
-
-                if (isUser) {
-                    currentQuery = text;
-                } else if (currentQuery) {
-                    messages.push({ query: currentQuery, answer: text });
-                    currentQuery = '';
-                }
-            });
-        }
-
-        // Strategy 3: Alternating message blocks (fallback)
-        if (messages.length === 0) {
-            console.log('[ChatGPT] Strategy 3: Alternating blocks');
-
-            const allBlocks = Array.from(document.querySelectorAll('main [class*="group"], main > div > div > div'));
-            const textBlocks = [];
-
-            allBlocks.forEach(block => {
-                const text = block.innerText?.trim();
-                if (text && text.length > 20) {
-                    // Avoid duplicates
-                    if (!textBlocks.includes(text)) {
-                        textBlocks.push(text);
-                    }
-                }
-            });
-
-            // Pair them alternately (user, assistant, user, assistant...)
-            for (let i = 0; i < textBlocks.length - 1; i += 2) {
-                if (textBlocks[i] && textBlocks[i + 1]) {
-                    messages.push({
-                        query: textBlocks[i],
-                        answer: textBlocks[i + 1]
-                    });
-                }
-            }
-        }
-
-        console.log(`[ChatGPT] ✓ DOM extraction complete: ${messages.length} message pairs`);
-
-        // Extract title from multiple sources
-        const title = document.title?.replace(' | ChatGPT', '').replace(' - ChatGPT', '').trim() ||
-            document.querySelector('h1')?.textContent?.trim() ||
-            document.querySelector('[class*="conversation-title"]')?.textContent?.trim() ||
-            messages[0]?.query?.substring(0, 100) ||
-            'ChatGPT Conversation';
-
-        return {
-            uuid: uuid,
-            title: title,
-            platform: 'ChatGPT',
-            entries: messages.filter(m => m.query?.trim() && m.answer?.trim())
-        };
-    },
 
     getSpaces: async () => []
 };
@@ -1208,62 +1133,17 @@ const ClaudeAdapter = {
             };
         } catch (error) {
             console.error('[Claude] getThreadDetail error:', error);
-
-            // Check if this is the current conversation
-            const isCurrentConversation = window.location.href.includes(uuid);
-            if (isCurrentConversation) {
-                console.log('[Claude] Falling back to DOM extraction');
-                return ClaudeAdapter.extractFromDOM(uuid);
-            }
-
             return {
                 uuid,
-                title: 'Unable to fetch - API error',
-                platform: 'Claude',
                 entries: [],
-                error: 'API access failed - can only export current conversation'
+                title: 'Error fetching details',
+                platform: 'Claude',
+                error: error.message
             };
         }
     },
 
-    extractFromDOM: (uuid) => {
-        console.log('[Claude] Starting DOM extraction...');
-        const messages = [];
 
-        // Strategy 1: Human/assistant message pairs
-        const humanMessages = document.querySelectorAll('[class*="human-turn"], [data-testid="human-turn"]');
-        const assistantMessages = document.querySelectorAll('[class*="assistant-turn"], [data-testid="assistant-turn"]');
-
-        if (humanMessages.length > 0 || assistantMessages.length > 0) {
-            const max = Math.max(humanMessages.length, assistantMessages.length);
-            for (let i = 0; i < max; i++) {
-                messages.push({
-                    query: humanMessages[i]?.innerText?.trim() || '',
-                    answer: assistantMessages[i]?.innerText?.trim() || ''
-                });
-            }
-        }
-
-        // Strategy 2: Prose/markdown containers
-        if (messages.length === 0) {
-            const proseBlocks = document.querySelectorAll('.prose, [class*="markdown"]');
-            let currentQuery = '';
-            proseBlocks.forEach((block, i) => {
-                const text = block.innerText?.trim() || '';
-                if (text.length > 10) {
-                    if (i % 2 === 0) {
-                        currentQuery = text;
-                    } else {
-                        messages.push({ query: currentQuery, answer: text });
-                        currentQuery = '';
-                    }
-                }
-            });
-        }
-
-        const title = document.title?.replace(' — Claude', '').replace(' - Claude', '').trim() || 'Claude Conversation';
-        return { uuid, title, platform: 'Claude', entries: messages.filter(m => m.query || m.answer) };
-    },
 
     getSpaces: async () => []
 };
@@ -1316,9 +1196,11 @@ async function fetchPerplexityDetailResilient(uuid) {
             const json = await response.json();
             console.log('[OmniExporter] API Response:', json);
 
-            // Extract entries - filter duplicates
-            if (json.entries && Array.isArray(json.entries)) {
-                json.entries.forEach(entry => {
+            // Extract entries - robust check
+            const rawEntries = PerplexityAdapter._parseEntries ? PerplexityAdapter._parseEntries(json) : (json.entries || []);
+
+            if (rawEntries && Array.isArray(rawEntries)) {
+                rawEntries.forEach(entry => {
                     if (!entries.find(e => e.uuid === entry.uuid)) {
                         entries.push(entry);
                     }
@@ -1345,15 +1227,14 @@ async function fetchPerplexityDetailResilient(uuid) {
 
         console.log('[OmniExporter] Final result - Title:', title, 'Entries:', entries.length);
 
-        // Debug: Log first entry structure
-        if (entries.length > 0) {
-            console.log('[OmniExporter] First entry structure:', JSON.stringify(entries[0], null, 2).slice(0, 500));
-        }
+
+
 
         return {
             entries: entries,
             title: title,
-            uuid: uuid
+            uuid: uuid,
+            debug: debug
         };
     } catch (error) {
         console.error('[OmniExporter] Error fetching thread detail:', error);
@@ -1517,6 +1398,20 @@ function transformClaudeData(data) {
     return entries;
 }
 
+/**
+ * Extract data from Next.js hydration data (ChatGPT)
+ * Valid "HTML Page" source that is not DOM scraping
+ */
+function extractFromNextData() {
+    try {
+        const script = document.getElementById('__NEXT_DATA__');
+        if (!script) return null;
+        return JSON.parse(script.textContent);
+    } catch (e) {
+        return null;
+    }
+}
+
 // ============================================
 // RESILIENT EXTRACTION HELPERS
 // ============================================
@@ -1539,16 +1434,7 @@ function extractAnswerResilient(entry, platform) {
     return entry.answer || entry.text || entry.content || '';
 }
 
-/**
- * Extract query using DataExtractor with fallbacks
- */
-function extractQueryResilient(entry, platform) {
-    const extracted = DataExtractor.extractQuery(entry, platform);
-    if (extracted) return extracted;
 
-    // Fallback
-    return entry.query || entry.query_str || entry.question || '';
-}
 
 // ============================================
 // AUTO-VERSION DETECTION ON LOAD

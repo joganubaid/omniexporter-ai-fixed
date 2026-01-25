@@ -171,45 +171,9 @@ const GrokAdapter = {
                 page
             };
         } catch (e) {
-            console.warn('[Grok] API fetch failed, trying DOM fallback');
+            console.error('[Grok] API fetch failed:', e);
+            throw e;
         }
-
-        // DOM Fallback
-        const threads = [];
-        try {
-            const chatItems = document.querySelectorAll(
-                '[class*="conversation-item"], [class*="chat-item"], a[href*="/conversation/"], [data-testid="conversation"]'
-            );
-            chatItems.forEach((item, i) => {
-                if (i >= limit) return;
-                const href = item.getAttribute('href') || '';
-                const uuidMatch = href.match(/\/conversation\/([a-zA-Z0-9_-]+)/) ||
-                    href.match(/([a-f0-9-]{36})/i);
-                if (uuidMatch) {
-                    threads.push({
-                        uuid: uuidMatch[1],
-                        title: item.innerText?.trim()?.slice(0, 100) || 'Grok Chat',
-                        platform: 'Grok',
-                        last_query_datetime: new Date().toISOString()
-                    });
-                }
-            });
-        } catch (e) { }
-
-        // Final fallback: current chat
-        if (threads.length === 0) {
-            const currentUuid = GrokAdapter.extractUuid(window.location.href);
-            if (currentUuid) {
-                threads.push({
-                    uuid: currentUuid,
-                    title: document.title?.replace(' | Grok', '').replace(' - Grok', '').trim() || 'Grok Chat',
-                    platform: 'Grok',
-                    last_query_datetime: new Date().toISOString()
-                });
-            }
-        }
-
-        return { threads, hasMore: false, page };
     },
 
     // ============================================
@@ -271,66 +235,11 @@ const GrokAdapter = {
             }
         }
 
-        // DOM fallback for current conversation
-        if (isCurrentConversation) {
-            console.log('[Grok] Falling back to DOM extraction');
-            return GrokAdapter.extractFromDOM(uuid);
-        }
-
         console.error('[Grok] Cannot fetch conversation', uuid);
-        return {
-            uuid,
-            title: 'Unable to fetch - API blocked',
-            platform: 'Grok',
-            entries: [],
-            error: 'API access blocked - can only export current conversation'
-        };
+        throw new Error('All Grok API endpoints failed');
     },
 
-    extractFromDOM: (uuid) => {
-        const messages = [];
-        const mainElement = document.querySelector('main, [role="main"]') || document.body;
 
-        // Strategy 1: Message bubbles
-        const bubbleSelectors = ['[class*="message"]', '[class*="bubble"]', '[data-message-id]'];
-        for (const sel of bubbleSelectors) {
-            const bubbles = mainElement.querySelectorAll(sel);
-            if (bubbles.length >= 2) {
-                let currentQuery = '';
-                bubbles.forEach((bubble, i) => {
-                    const text = bubble.innerText?.trim() || '';
-                    if (text.length > 5) {
-                        const isUser = bubble.className?.includes('user') || i % 2 === 0;
-                        if (isUser) {
-                            currentQuery = text;
-                        } else if (currentQuery) {
-                            messages.push({ query: currentQuery, answer: text });
-                            currentQuery = '';
-                        }
-                    }
-                });
-                if (messages.length > 0) break;
-            }
-        }
-
-        // Strategy 2: Text blocks
-        if (messages.length === 0) {
-            const allDivs = mainElement.querySelectorAll('div');
-            const textBlocks = [];
-            allDivs.forEach(div => {
-                if (div.children.length === 0 && div.innerText?.trim().length > 30) {
-                    const text = div.innerText.trim();
-                    if (!textBlocks.includes(text)) textBlocks.push(text);
-                }
-            });
-            for (let i = 0; i < textBlocks.length - 1; i += 2) {
-                messages.push({ query: textBlocks[i] || '', answer: textBlocks[i + 1] || '' });
-            }
-        }
-
-        const title = document.title?.replace(' | Grok', '').replace(' - Grok', '').trim() || 'Grok Conversation';
-        return { uuid, title, platform: 'Grok', entries: messages.filter(m => m.query || m.answer) };
-    },
 
     getSpaces: async () => []
 };

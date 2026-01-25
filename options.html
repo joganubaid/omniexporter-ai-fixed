@@ -690,6 +690,44 @@
                                 </details>
                             </div>
 
+                            <!-- Test Metrics Panel -->
+                            <div class="test-section" style="margin-top: 16px;">
+                                <details>
+                                    <summary style="cursor: pointer; font-weight: bold;">📊 Test Metrics</summary>
+                                    <div id="testMetricsPanel"
+                                        style="margin-top: 8px; padding: 12px; background: var(--bg-tertiary); border-radius: 8px; font-size: 12px;">
+                                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                                            <div
+                                                style="text-align: center; padding: 8px; background: var(--bg-secondary); border-radius: 6px;">
+                                                <div style="font-size: 20px; font-weight: bold; color: #10b981;"
+                                                    id="metricPassRate">--%</div>
+                                                <div style="color: var(--text-tertiary);">Pass Rate</div>
+                                            </div>
+                                            <div
+                                                style="text-align: center; padding: 8px; background: var(--bg-secondary); border-radius: 6px;">
+                                                <div style="font-size: 20px; font-weight: bold; color: #6366f1;"
+                                                    id="metricAvgDuration">--ms</div>
+                                                <div style="color: var(--text-tertiary);">Avg Duration</div>
+                                            </div>
+                                            <div
+                                                style="text-align: center; padding: 8px; background: var(--bg-secondary); border-radius: 6px;">
+                                                <div style="font-size: 20px; font-weight: bold; color: #f59e0b;"
+                                                    id="metricFlakyCount">0</div>
+                                                <div style="color: var(--text-tertiary);">Flaky Tests</div>
+                                            </div>
+                                        </div>
+                                        <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                                            <span>🐢 Slowest: <strong id="metricSlowest">--</strong></span>
+                                            <span>⚡ Fastest: <strong id="metricFastest">--</strong></span>
+                                        </div>
+                                        <div style="margin-top: 8px;">
+                                            <button id="showCoverageBtn" class="btn-small">📈 View Coverage</button>
+                                            <button id="showFlakyBtn" class="btn-small">⚠️ Flaky Tests</button>
+                                        </div>
+                                    </div>
+                                </details>
+                            </div>
+
                             <!-- Performance Panel -->
                             <div class="test-section" style="margin-top: 16px;">
                                 <details>

@@ -130,32 +130,8 @@
                 }
             }
 
-            // Strategy 2: Parse from DOM
-            const chatItems = document.querySelectorAll(
-                '[data-conversation-id], ' +
-                '[data-gem-id], ' +
-                'a[href*="/app/"], ' +
-                'a[href*="/gem/"]'
-            );
 
-            chatItems.forEach((item, index) => {
-                const id = item.getAttribute('data-conversation-id') ||
-                    item.getAttribute('data-gem-id') ||
-                    this.extractIdFromHref(item.href);
-
-                if (id) {
-                    const title = item.querySelector('[data-title]')?.textContent ||
-                        item.textContent?.trim().substring(0, 100) ||
-                        `Conversation ${index + 1}`;
-
-                    conversations.push({
-                        uuid: id,
-                        title: title.trim(),
-                        platform: 'Gemini'
-                    });
-                }
-            });
-
+            // Strategy 2: DOM Parsing REMOVED (Strict API Only)
             return conversations;
         }
 
@@ -178,34 +154,11 @@
                 }
             }
 
-            // Strategy 2: DOM extraction
-            const userMessages = document.querySelectorAll(
-                '[data-message-author="human"], ' +
-                '.user-message, ' +
-                '[class*="user-turn"], ' +
-                '[class*="query-content"]'
-            );
 
-            const aiMessages = document.querySelectorAll(
-                '[data-message-author="assistant"], ' +
-                '.model-response, ' +
-                '[class*="model-turn"], ' +
-                '[class*="response-content"], ' +
-                '[class*="markdown"]'
-            );
+            // Strategy 2: DOM Extraction REMOVED (Strict API Only)
 
-            const maxLen = Math.max(userMessages.length, aiMessages.length);
-            for (let i = 0; i < maxLen; i++) {
-                messages.push({
-                    query: userMessages[i]?.textContent?.trim() || '',
-                    answer: aiMessages[i]?.textContent?.trim() || '',
-                    index: i
-                });
-            }
-
-            // Get title
-            const title = document.querySelector('title')?.textContent?.replace(' - Gemini', '').replace('Gemini', '').trim() ||
-                document.querySelector('h1')?.textContent ||
+            // Get title (Allowed as browser metadata, not content scraping)
+            const title = document.title?.replace(' - Gemini', '').replace('Gemini', '').trim() ||
                 'Gemini Conversation';
 
             return {

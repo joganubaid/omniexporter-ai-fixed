@@ -130,9 +130,10 @@ const PLATFORM_CONFIGS = {
         },
         patterns: {
             uuidExtract: [
-                /\/app\/([a-zA-Z0-9_-]+)/,
-                /\/gem\/([a-zA-Z0-9_-]+)/,
-                /\/c\/([a-zA-Z0-9_-]+)/
+                /\/app\/([a-zA-Z0-9._-]+)/,
+                /\/gem\/([a-zA-Z0-9._-]+)/,
+                /\/chat\/([a-zA-Z0-9._-]+)/,
+                /\/([a-zA-Z0-9._-]{10,})/ // Catch-all for long IDs
             ]
         },
         dataFields: {

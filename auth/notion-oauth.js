@@ -392,6 +392,84 @@ var NotionOAuth = {
             await chrome.storage.local.set({ notionApiKey: stored.notionKey });
         }
         return token;
+    },
+
+    /**
+     * Test Notion connection validity
+     * Verifies token works against API
+     */
+    async testConnection() {
+        try {
+            const token = await this.getActiveToken();
+            _logOAuth('info', 'Testing connection with token...');
+
+            // Use the users/me endpoint (lightweight check)
+            const response = await fetch('https://api.notion.com/v1/users/me', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Notion-Version': '2022-06-28'
+                }
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(`API Error: ${err.message || response.statusText}`);
+            }
+
+            const data = await response.json();
+            const workspaceName = data?.bot?.owner?.workspace ?
+                data.bot.owner.workspace.name :
+                (data.name || 'Notion Workspace');
+
+            _logOAuth('info', 'Connection Verified', { workspace: workspaceName });
+
+            return {
+                success: true,
+                workspaceName: workspaceName,
+                botName: data.name
+            };
+        } catch (error) {
+            _logOAuth('error', 'Connection test failed', { error: error.message });
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    },
+
+    /**
+     * Upload a page content to Notion (Used for Verification)
+     */
+    async uploadPage(properties, children, token) {
+        if (!token) token = await this.getActiveToken();
+
+        // Ensure database ID exists
+        const stored = await chrome.storage.local.get('notionDbId');
+        if (!stored.notionDbId) {
+            throw new Error('No Notion Database configured. Please run setup first.');
+        }
+
+        const response = await fetch('https://api.notion.com/v1/pages', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Notion-Version': '2022-06-28',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                parent: { database_id: stored.notionDbId },
+                properties: properties,
+                children: children
+            })
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(`Upload failed: ${err.message || response.statusText}`);
+        }
+
+        return await response.json();
     }
 };
 
