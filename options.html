@@ -594,6 +594,34 @@
                                 </div>
                             </div>
 
+                            <!-- Network Mode Tests -->
+                            <div class="test-section"
+                                style="margin-top: 16px; padding: 12px; background: var(--bg-tertiary); border-radius: 8px;">
+                                <strong>📶 Network Mode Tests</strong>
+                                <p style="font-size: 12px; color: var(--text-secondary); margin: 4px 0 8px 0;">
+                                    Choose based on your internet speed
+                                </p>
+                                <div class="test-buttons" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                    <button id="testFastInternet" class="btn-small" style="background: #10b981;">
+                                        ⚡ Fast Internet
+                                    </button>
+                                    <button id="testSlowInternet" class="btn-small" style="background: #f59e0b;">
+                                        🐢 Slow Internet
+                                    </button>
+                                    <button id="testOpenTabsOnly" class="btn-small">
+                                        📂 Open Tabs Only
+                                    </button>
+                                </div>
+                                <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 8px;">
+                                    <div>⚡ <b>Fast</b>: Uses existing tabs, opens new with 3s wait</div>
+                                    <div>🐢 <b>Slow</b>: Opens all tabs, waits 5s + 10s retry if needed</div>
+                                    <div>📂 <b>Open Only</b>: Only tests platforms you have open</div>
+                                </div>
+                                <div id="networkTestProgress" style="margin-top: 8px; display: none;">
+                                    <div style="font-size: 12px;">⏳ <span id="networkTestStatus">Loading...</span></div>
+                                </div>
+                            </div>
+
                             <!-- Deep Platform Tests -->
                             <div class="test-section" style="margin-top: 16px;">
                                 <strong>🔬 Deep Platform Tests</strong>
@@ -612,15 +640,92 @@
 
                             <!-- Test Results -->
                             <div id="testResultsContainer" style="margin-top: 16px; display: none;">
-                                <strong>📊 Test Results</strong>
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <strong>📊 Test Results</strong>
+                                    <!-- Search & Filter -->
+                                    <div style="display: flex; gap: 8px;">
+                                        <input type="text" id="testSearch" placeholder="🔍 Search tests..."
+                                            style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-secondary); width: 150px; font-size: 12px;">
+                                        <select id="testFilter"
+                                            style="padding: 4px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-secondary); font-size: 12px;">
+                                            <option value="all">All Tests</option>
+                                            <option value="passed">✅ Passed</option>
+                                            <option value="failed">❌ Failed</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Progress Bar -->
+                                <div id="testProgressBar"
+                                    style="width: 100%; height: 4px; background: var(--bg-tertiary); border-radius: 2px; margin-bottom: 8px; overflow: hidden; display: none;">
+                                    <div id="testProgressFill"
+                                        style="width: 0%; height: 100%; background: linear-gradient(90deg, #4f46e5, #06b6d4); transition: width 0.3s;">
+                                    </div>
+                                </div>
+
                                 <div id="testResults" class="test-results"
                                     style="margin-top: 8px; padding: 12px; background: var(--bg-tertiary); border-radius: 8px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px;">
                                 </div>
-                                <div class="test-summary" style="margin-top: 8px; display: flex; gap: 16px;">
+                                <div class="test-summary"
+                                    style="margin-top: 8px; display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
                                     <span>✅ Passed: <strong id="testsPassed">0</strong></span>
                                     <span>❌ Failed: <strong id="testsFailed">0</strong></span>
                                     <span>⏱️ Duration: <strong id="testsDuration">0ms</strong></span>
+                                    <span style="margin-left: auto;">
+                                        <button id="exportResultsJson" class="btn-small">📥 JSON</button>
+                                        <button id="exportResultsCsv" class="btn-small">📥 CSV</button>
+                                    </span>
                                 </div>
+                            </div>
+
+                            <!-- Test History Panel -->
+                            <div class="test-section" style="margin-top: 16px;">
+                                <details>
+                                    <summary style="cursor: pointer; font-weight: bold;">📜 Test History</summary>
+                                    <div id="testHistoryPanel"
+                                        style="margin-top: 8px; padding: 8px; background: var(--bg-tertiary); border-radius: 8px; font-size: 12px;">
+                                        <em>No test runs yet</em>
+                                    </div>
+                                </details>
+                            </div>
+
+                            <!-- Performance Panel -->
+                            <div class="test-section" style="margin-top: 16px;">
+                                <details>
+                                    <summary style="cursor: pointer; font-weight: bold;">📈 Performance</summary>
+                                    <div id="performancePanel"
+                                        style="margin-top: 8px; padding: 12px; background: var(--bg-tertiary); border-radius: 8px; font-size: 12px;">
+                                        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                                            <div>🧠 Memory: <strong id="perfMemory">--</strong></div>
+                                            <div>💾 Storage: <strong id="perfStorage">--</strong></div>
+                                            <div>📝 Log Count: <strong id="perfLogCount">--</strong></div>
+                                        </div>
+                                        <button id="refreshPerformance" class="btn-small" style="margin-top: 8px;">🔄
+                                            Refresh</button>
+                                    </div>
+                                </details>
+                            </div>
+
+                            <!-- Extra Tests -->
+                            <div class="test-section" style="margin-top: 16px;">
+                                <strong>⚡ Extra Tests</strong>
+                                <div class="test-buttons"
+                                    style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px;">
+                                    <button id="runSecurityTests" class="btn-small">🔒 Security</button>
+                                    <button id="runErrorTests" class="btn-small">⚠️ Errors</button>
+                                    <button id="runAdapterTests" class="btn-small">🌐 Adapters</button>
+                                    <button id="runToastTests" class="btn-small">🔔 Toast</button>
+                                    <button id="runAdvancedTests" class="btn-small">🚀 Advanced</button>
+                                    <button id="runStressTests" class="btn-small danger">💪 Stress</button>
+                                </div>
+                            </div>
+
+                            <!-- Clear Logs -->
+                            <div class="test-section"
+                                style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+                                <button id="clearAllLogs" class="btn-small danger" style="width: 100%;">🗑️ Clear All
+                                    Logs (Secure)</button>
                             </div>
                         </div>
                     </div>
@@ -647,6 +752,7 @@
     <script src="config.js"></script>
     <script src="platform-config.js"></script>
     <script src="export-manager.js"></script>
+    <script src="toast.js"></script>
     <script src="auth/notion-oauth.js"></script>
     <script src="options.js"></script>
 </body>

@@ -54,6 +54,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
         console.log("Auto-sync alarm triggered");
         performAutoSync();
     }
+
+    if (alarm.name === 'storageCleanup') {
+        enforceStorageLimit();
+    }
 });
 
 // ============================================
@@ -125,6 +129,17 @@ async function releaseSyncLock() {
 // ============================================
 chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === 'local') {
+        // SECURITY: Clear logs when debug mode is disabled
+        if (changes.debugMode && changes.debugMode.newValue === false) {
+            console.log('[Security] Debug mode disabled - clearing all logs');
+            chrome.storage.local.remove([
+                'omniLogs',
+                'logEntries',
+                'testHistory',
+                'debugLogs'
+            ]);
+        }
+
         // Handle Auto-Sync Toggle
         if (changes.autoSyncEnabled) {
             if (changes.autoSyncEnabled.newValue === true) {
@@ -161,6 +176,30 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
         }
     }
 });
+
+// ============================================
+// STORAGE LIMIT ENFORCEMENT (Prevent Memory Overflow)
+// ============================================
+async function enforceStorageLimit() {
+    try {
+        const MAX_STORAGE_MB = 5; // 5MB limit for logs
+        const bytes = await chrome.storage.local.getBytesInUse(['omniLogs']);
+        const mb = bytes / (1024 * 1024);
+
+        if (mb > MAX_STORAGE_MB) {
+            console.log(`[Security] Storage limit exceeded (${mb.toFixed(2)}MB > ${MAX_STORAGE_MB}MB) - trimming logs`);
+            const { omniLogs = [] } = await chrome.storage.local.get('omniLogs');
+            // Keep only last 50% of logs
+            const trimmed = omniLogs.slice(Math.floor(omniLogs.length / 2));
+            await chrome.storage.local.set({ omniLogs: trimmed });
+        }
+    } catch (e) {
+        console.warn('[Security] Storage limit check failed:', e.message);
+    }
+}
+
+// Check storage limits periodically (every 5 minutes)
+chrome.alarms.create('storageCleanup', { periodInMinutes: 5 });
 
 // ============================================
 // AUTO-SYNC IMPLEMENTATION (Incremental with Checkpoints)

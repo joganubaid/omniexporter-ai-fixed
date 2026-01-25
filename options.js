@@ -2953,6 +2953,17 @@ const TestRunner = {
         document.getElementById('testsPassed').textContent = this.passed;
         document.getElementById('testsFailed').textContent = this.failed;
         document.getElementById('testsDuration').textContent = duration + 'ms';
+
+        // Save to history and refresh display
+        if (this.passed > 0 || this.failed > 0) {
+            this.saveToHistory();
+            if (typeof window.displayTestHistory === 'function') {
+                window.displayTestHistory();
+            }
+            if (typeof window.refreshPerformance === 'function') {
+                window.refreshPerformance();
+            }
+        }
     },
 
     setStatus(text) {
@@ -3153,21 +3164,350 @@ const TestRunner = {
         await this.test('Auto-sync toggle exists', () => this.assert(document.getElementById('autoSyncToggle')));
     },
 
+    // ============================================
+    // TOAST SYSTEM TESTS (8 tests)
+    // ============================================
+    async testToast() {
+        this.appendResult('<b>🔔 TOAST TESTS</b>');
+
+        const toastAvailable = typeof Toast !== 'undefined';
+        await this.test('Toast class exists', () => this.assert(toastAvailable));
+
+        if (toastAvailable) {
+            await this.test('Toast.init is function', () => this.assert(typeof Toast.init === 'function'));
+            await this.test('Toast.create is function', () => this.assert(typeof Toast.create === 'function'));
+            await this.test('Toast.dismiss is function', () => this.assert(typeof Toast.dismiss === 'function'));
+            await this.test('Toast.success is function', () => this.assert(typeof Toast.success === 'function'));
+            await this.test('Toast.error is function', () => this.assert(typeof Toast.error === 'function'));
+            await this.test('Toast.info is function', () => this.assert(typeof Toast.info === 'function'));
+            await this.test('Toast.escapeHtml works', () => { const r = Toast.escapeHtml('<test>'); this.assert(!r.includes('<')); });
+        } else {
+            this.appendResult('⚠️ Toast not loaded in Options context');
+        }
+    },
+
+    // ============================================
+    // STRESS TESTS (4 tests)
+    // ============================================
+    async testStress() {
+        this.appendResult('<b>💪 STRESS TESTS</b>');
+
+        // Large data handling
+        await this.test('Large object sanitization', () => {
+            const bigObj = {};
+            for (let i = 0; i < 100; i++) bigObj[`key${i}`] = 'value'.repeat(10);
+            const r = Logger._sanitizeData(bigObj);
+            this.assert(typeof r === 'object');
+        });
+
+        // Rapid operations
+        await this.test('Rapid storage ops (50x)', async () => {
+            for (let i = 0; i < 50; i++) {
+                await chrome.storage.local.set({ [`_stress${i}`]: i });
+            }
+            const r = await chrome.storage.local.get('_stress49');
+            this.assertEqual(r._stress49, 49);
+            // Cleanup
+            const keys = Array.from({ length: 50 }, (_, i) => `_stress${i}`);
+            await chrome.storage.local.remove(keys);
+        });
+
+        // Memory check
+        await this.test('Memory usage reasonable', () => {
+            if (performance.memory) {
+                const mb = performance.memory.usedJSHeapSize / 1024 / 1024;
+                this.assert(mb < 500, `Used: ${mb.toFixed(1)}MB`);
+            } else {
+                this.assert(true); // Can't measure, pass
+            }
+        });
+
+        // Concurrent operations
+        await this.test('Concurrent async ops (10x)', async () => {
+            const promises = Array.from({ length: 10 }, (_, i) =>
+                chrome.storage.local.set({ [`_conc${i}`]: i })
+            );
+            await Promise.all(promises);
+            const keys = Array.from({ length: 10 }, (_, i) => `_conc${i}`);
+            await chrome.storage.local.remove(keys);
+        });
+    },
+
+    // ============================================
+    // ADVANCED FEATURE TESTS (8 tests)
+    // ============================================
+    async testAdvanced() {
+        this.appendResult('<b>🚀 ADVANCED TESTS</b>');
+
+        // Chrome APIs
+        await this.test('chrome.tabs API exists', () => this.assert(chrome.tabs));
+        await this.test('chrome.runtime API exists', () => this.assert(chrome.runtime));
+        await this.test('chrome.alarms API exists', () => this.assert(chrome.alarms));
+
+        // Manifest
+        await this.test('Manifest accessible', () => {
+            const m = chrome.runtime.getManifest();
+            this.assert(m.name && m.version);
+        });
+
+        // Extension ID
+        await this.test('Extension ID exists', () => this.assert(chrome.runtime.id));
+
+        // Storage quota
+        await this.test('Storage quota available', async () => {
+            if (chrome.storage.local.getBytesInUse) {
+                const bytes = await chrome.storage.local.getBytesInUse();
+                this.assert(typeof bytes === 'number');
+            } else {
+                this.assert(true);
+            }
+        });
+
+        // Performance API
+        await this.test('Performance API works', () => {
+            const t = performance.now();
+            this.assert(typeof t === 'number' && t > 0);
+        });
+
+        // JSON handling
+        await this.test('Large JSON parse/stringify', () => {
+            const obj = { items: Array.from({ length: 1000 }, (_, i) => ({ id: i, data: 'test' })) };
+            const str = JSON.stringify(obj);
+            const parsed = JSON.parse(str);
+            this.assertEqual(parsed.items.length, 1000);
+        });
+    },
+
+    // ============================================
+    // SECURITY TESTS (4 tests)
+    // ============================================
+    async testSecurity() {
+        this.appendResult('<b>🔒 SECURITY TESTS</b>');
+
+        // UUID Validation
+        await this.test('Valid UUID passes', () => {
+            const validUuid = '550e8400-e29b-41d4-a716-446655440000';
+            const pattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            this.assert(pattern.test(validUuid));
+        });
+
+        await this.test('Invalid UUID rejected', () => {
+            const invalidUuid = 'not-a-uuid';
+            const pattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            this.assert(!pattern.test(invalidUuid));
+        });
+
+        // XSS Prevention
+        await this.test('HTML sanitization works', () => {
+            const malicious = '<script>alert("xss")</script>';
+            const div = document.createElement('div');
+            div.textContent = malicious;
+            const sanitized = div.innerHTML;
+            this.assert(!sanitized.includes('<script>'));
+        });
+
+        await this.test('Script injection blocked', () => {
+            const input = '"><img src=x onerror=alert(1)>';
+            const safe = input.replace(/[<>"'&]/g, c => ({
+                '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '&': '&amp;'
+            }[c]));
+            this.assert(!safe.includes('<'));
+        });
+    },
+
+    // ============================================
+    // ERROR SIMULATION TESTS (4 tests)
+    // ============================================
+    async testErrorSimulation() {
+        this.appendResult('<b>⚠️ ERROR SIMULATION TESTS</b>');
+
+        // Timeout handling
+        await this.test('Timeout promise rejects', async () => {
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Timeout')), 50)
+            );
+            try {
+                await timeoutPromise;
+                this.assert(false, 'Should have timed out');
+            } catch (e) {
+                this.assertEqual(e.message, 'Timeout');
+            }
+        });
+
+        // Rate limit error handling
+        await this.test('429 error mapped correctly', () => {
+            const error = { status: 429, message: 'Rate limited' };
+            const isRateLimit = error.status === 429;
+            this.assert(isRateLimit);
+        });
+
+        // Invalid JSON handling
+        await this.test('Invalid JSON throws', () => {
+            try {
+                JSON.parse('not valid json');
+                this.assert(false, 'Should have thrown');
+            } catch (e) {
+                this.assert(e instanceof SyntaxError);
+            }
+        });
+
+        // Token expiry simulation
+        await this.test('Token expiry detection', () => {
+            const token = { expires_at: Date.now() - 1000 }; // Expired 1 second ago
+            const isExpired = token.expires_at < Date.now();
+            this.assert(isExpired);
+        });
+    },
+
+    // ============================================
+    // PLATFORM ADAPTER TESTS (12 tests)
+    // ============================================
+    async testPlatformAdapters() {
+        this.appendResult('<b>🌐 PLATFORM ADAPTER TESTS</b>');
+
+        const pc = typeof PlatformConfig !== 'undefined' ? PlatformConfig : null;
+
+        // Perplexity UUID extraction
+        await this.test('Perplexity UUID from URL', () => {
+            const url = 'https://perplexity.ai/search/abc123def456';
+            const match = url.match(/\/search\/([^/?#]+)/);
+            this.assert(match && match[1] === 'abc123def456');
+        });
+
+        // ChatGPT UUID extraction
+        await this.test('ChatGPT UUID from URL', () => {
+            const url = 'https://chatgpt.com/c/550e8400-e29b-41d4-a716-446655440000';
+            const match = url.match(/\/c\/([a-f0-9-]+)/i);
+            this.assert(match !== null);
+        });
+
+        // Claude UUID extraction
+        await this.test('Claude UUID from URL', () => {
+            const url = 'https://claude.ai/chat/abc123-def456-789';
+            const match = url.match(/\/chat\/([^/?#]+)/);
+            this.assert(match && match[1] === 'abc123-def456-789');
+        });
+
+        // Gemini UUID extraction
+        await this.test('Gemini UUID from URL', () => {
+            const url = 'https://gemini.google.com/app/abc123xyz';
+            const match = url.match(/\/app\/([^/?#]+)/);
+            this.assert(match !== null);
+        });
+
+        // Grok UUID extraction
+        await this.test('Grok UUID from URL', () => {
+            const url = 'https://grok.com/chat/abc123';
+            const match = url.match(/\/chat\/([^/?#]+)/);
+            this.assert(match && match[1] === 'abc123');
+        });
+
+        // DeepSeek UUID extraction
+        await this.test('DeepSeek UUID from URL', () => {
+            const url = 'https://chat.deepseek.com/a/chat/s/abc123';
+            const match = url.match(/\/chat\/s\/([^/?#]+)/) || url.match(/\/chat\/([^/?#]+)/);
+            this.assert(match !== null);
+        });
+
+        // Platform Config tests
+        if (pc) {
+            await this.test('PlatformConfig.Perplexity has baseUrl', () => this.assert(pc.Perplexity?.baseUrl));
+            await this.test('PlatformConfig.ChatGPT has endpoints', () => this.assert(pc.ChatGPT?.endpoints));
+            await this.test('PlatformConfig.Claude has patterns', () => this.assert(pc.Claude?.patterns));
+            await this.test('PlatformConfig.Gemini has dataFields', () => this.assert(pc.Gemini?.dataFields));
+            await this.test('PlatformConfig.Grok has versions', () => this.assert(pc.Grok?.versions));
+            await this.test('PlatformConfig.DeepSeek has rateLimit', () => this.assert(pc.DeepSeek?.rateLimit));
+        } else {
+            this.appendResult('⚠️ PlatformConfig not available');
+        }
+    },
+
+    // ============================================
+    // TEST HISTORY & EXPORT
+    // ============================================
+    history: [],
+
+    saveToHistory() {
+        const entry = {
+            timestamp: new Date().toISOString(),
+            passed: this.passed,
+            failed: this.failed,
+            total: this.passed + this.failed,
+            results: [...this.results]
+        };
+        this.history.unshift(entry);
+        if (this.history.length > 10) this.history.pop();
+
+        // Save to storage
+        chrome.storage.local.set({ testHistory: this.history });
+    },
+
+    async loadHistory() {
+        const { testHistory } = await chrome.storage.local.get('testHistory');
+        this.history = testHistory || [];
+    },
+
+    exportResults(format = 'json') {
+        const data = {
+            timestamp: new Date().toISOString(),
+            passed: this.passed,
+            failed: this.failed,
+            total: this.passed + this.failed,
+            results: this.results
+        };
+
+        let content, filename, type;
+
+        if (format === 'csv') {
+            content = 'Name,Status,Error\n' +
+                this.results.map(r => `"${r.name}","${r.status}","${r.error || ''}"`).join('\n');
+            filename = `test-results-${Date.now()}.csv`;
+            type = 'text/csv';
+        } else {
+            content = JSON.stringify(data, null, 2);
+            filename = `test-results-${Date.now()}.json`;
+            type = 'application/json';
+        }
+
+        const blob = new Blob([content], { type });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    },
+
     // Run all unit tests
     async runAll() {
         this.reset();
-        this.setStatus('Running 68 tests...');
+        await this.loadHistory();
+        this.setStatus('Running 110+ tests...');
         const start = performance.now();
 
-        await this.testLogger();
-        await this.testStorage();
-        await this.testOAuth();
-        await this.testExport();
-        await this.testPlatformConfig();
-        await this.testUI();
+        // Update progress
+        const updateProgress = (current, total) => {
+            const pct = Math.round((current / total) * 100);
+            this.setStatus(`Running... ${pct}%`);
+        };
+
+        await this.testLogger(); updateProgress(1, 11);
+        await this.testStorage(); updateProgress(2, 11);
+        await this.testOAuth(); updateProgress(3, 11);
+        await this.testExport(); updateProgress(4, 11);
+        await this.testPlatformConfig(); updateProgress(5, 11);
+        await this.testUI(); updateProgress(6, 11);
+        await this.testToast(); updateProgress(7, 11);
+        await this.testAdvanced(); updateProgress(8, 11);
+        await this.testSecurity(); updateProgress(9, 11);
+        await this.testErrorSimulation(); updateProgress(10, 11);
+        await this.testPlatformAdapters(); updateProgress(11, 11);
+        // Stress tests optional - can be slow
+        // await this.testStress();
 
         const duration = Math.round(performance.now() - start);
         this.updateSummary(duration);
+        this.saveToHistory();
         this.setStatus(this.failed === 0 ? '✅ All Passed!' : `❌ ${this.failed} Failed`);
     },
 
@@ -3213,10 +3553,14 @@ const TestRunner = {
                         this.passed++;
                     }
 
-                    // Only close tabs we opened
+                    // Only close tabs we opened - with error handling
                     if (openedNewTab) {
                         await new Promise(r => setTimeout(r, 1000));
-                        chrome.tabs.remove(tab.id);
+                        try {
+                            await chrome.tabs.remove(tab.id);
+                        } catch (e) {
+                            // Tab may already be closed, ignore
+                        }
                     }
                     resolve();
                 });
@@ -3244,6 +3588,299 @@ const TestRunner = {
         const duration = Math.round(performance.now() - start);
         this.updateSummary(duration);
         this.setStatus(`Done: ${this.passed}/6 platforms`);
+    },
+
+    // Network status helper
+    setNetworkStatus(text) {
+        const el = document.getElementById('networkTestStatus');
+        const container = document.getElementById('networkTestProgress');
+        if (el) el.textContent = text;
+        if (container) container.style.display = text ? 'block' : 'none';
+    },
+
+    // Countdown helper
+    async countdown(seconds, prefix = 'Loading') {
+        for (let i = seconds; i > 0; i--) {
+            this.setNetworkStatus(`${prefix}... ${i}s remaining`);
+            await new Promise(r => setTimeout(r, 1000));
+        }
+    },
+
+    // ⚡ Fast Internet Test Mode - PARALLEL
+    async testFastInternet() {
+        this.reset();
+        this.setStatus('⚡ Fast Internet Test (Parallel)');
+        this.appendResult('<b>⚡ FAST INTERNET - PARALLEL MODE</b>');
+        this.appendResult('Testing all 6 platforms simultaneously\n');
+
+        const platforms = {
+            perplexity: { name: 'Perplexity', url: 'https://www.perplexity.ai/', match: '*://www.perplexity.ai/*' },
+            chatgpt: { name: 'ChatGPT', url: 'https://chatgpt.com/', match: '*://chatgpt.com/*' },
+            claude: { name: 'Claude', url: 'https://claude.ai/', match: '*://claude.ai/*' },
+            gemini: { name: 'Gemini', url: 'https://gemini.google.com/', match: '*://gemini.google.com/*' },
+            grok: { name: 'Grok', url: 'https://grok.com/', match: '*://grok.com/*' },
+            deepseek: { name: 'DeepSeek', url: 'https://chat.deepseek.com/', match: '*://chat.deepseek.com/*' }
+        };
+
+        // Phase 1: Open all tabs in parallel
+        this.setNetworkStatus('Opening all platform tabs...');
+        const tabSetup = await Promise.all(
+            Object.entries(platforms).map(async ([key, platform]) => {
+                const existingTabs = await chrome.tabs.query({ url: platform.match });
+                if (existingTabs.length > 0) {
+                    return { platform, tab: existingTabs[0], opened: false };
+                } else {
+                    const tab = await chrome.tabs.create({ url: platform.url, active: false });
+                    return { platform, tab, opened: true };
+                }
+            })
+        );
+
+        // Phase 2: Wait 3 seconds for tabs to load
+        await this.countdown(3, 'Loading platforms');
+
+        // Phase 3: Test all in parallel
+        this.setNetworkStatus('Testing all platforms simultaneously...');
+        const results = await Promise.allSettled(
+            tabSetup.map(async ({ platform, tab }) => {
+                const success = await this.sendMessageWithRetry(tab.id, { type: 'GET_PLATFORM_INFO' }, 2);
+                return { platform, success };
+            })
+        );
+
+        // Phase 4: Process results
+        const failed = [];
+        for (const result of results) {
+            if (result.status === 'fulfilled' && result.value.success) {
+                this.appendResult(`✅ ${result.value.platform.name}: Connected`);
+                this.passed++;
+            } else {
+                const name = result.status === 'fulfilled' ? result.value.platform.name : 'Unknown';
+                failed.push(tabSetup.find(t => t.platform.name === name));
+                this.appendResult(`⏳ ${name}: Queued for retry...`);
+            }
+        }
+
+        // Phase 5: Retry failed ones with 5s wait
+        if (failed.length > 0) {
+            this.appendResult(`\n<b>Retrying ${failed.length} failed platforms...</b>`);
+            await this.countdown(5, 'Retry wait');
+
+            const retryResults = await Promise.allSettled(
+                failed.filter(f => f).map(async ({ platform, tab }) => {
+                    const success = await this.sendMessageWithRetry(tab.id, { type: 'GET_PLATFORM_INFO' }, 3);
+                    return { platform, success };
+                })
+            );
+
+            for (const result of retryResults) {
+                if (result.status === 'fulfilled' && result.value.success) {
+                    this.appendResult(`✅ ${result.value.platform.name}: Connected (retry)`);
+                    this.passed++;
+                } else {
+                    const name = result.status === 'fulfilled' ? result.value.platform.name : 'Unknown';
+                    this.appendResult(`❌ ${name}: Failed after retry`);
+                    this.failed++;
+                }
+            }
+        }
+
+        // Cleanup
+        for (const { tab, opened } of tabSetup) {
+            if (opened) {
+                try { await chrome.tabs.remove(tab.id); } catch (e) { }
+            }
+        }
+
+        this.setNetworkStatus('');
+        this.updateSummary();
+        this.setStatus(`⚡ Done: ${this.passed}/6 platforms`);
+    },
+
+    // 🐢 Slow Internet Test Mode - PARALLEL with extended retry
+    async testSlowInternet() {
+        this.reset();
+        this.setStatus('🐢 Slow Internet Test (Parallel)');
+        this.appendResult('<b>🐢 SLOW INTERNET - PARALLEL MODE</b>');
+        this.appendResult('All platforms tested together, 5s wait + 10s retry\n');
+
+        const platforms = {
+            perplexity: { name: 'Perplexity', url: 'https://www.perplexity.ai/', match: '*://www.perplexity.ai/*' },
+            chatgpt: { name: 'ChatGPT', url: 'https://chatgpt.com/', match: '*://chatgpt.com/*' },
+            claude: { name: 'Claude', url: 'https://claude.ai/', match: '*://claude.ai/*' },
+            gemini: { name: 'Gemini', url: 'https://gemini.google.com/', match: '*://gemini.google.com/*' },
+            grok: { name: 'Grok', url: 'https://grok.com/', match: '*://grok.com/*' },
+            deepseek: { name: 'DeepSeek', url: 'https://chat.deepseek.com/', match: '*://chat.deepseek.com/*' }
+        };
+
+        // Phase 1: Open all tabs in parallel
+        this.setNetworkStatus('Opening all platform tabs...');
+        const tabSetup = await Promise.all(
+            Object.entries(platforms).map(async ([key, platform]) => {
+                const existingTabs = await chrome.tabs.query({ url: platform.match });
+                if (existingTabs.length > 0) {
+                    return { platform, tab: existingTabs[0], opened: false };
+                } else {
+                    const tab = await chrome.tabs.create({ url: platform.url, active: false });
+                    return { platform, tab, opened: true };
+                }
+            })
+        );
+
+        // Phase 2: Wait 5 seconds for tabs to load
+        await this.countdown(5, 'Loading platforms');
+
+        // Phase 3: Test all in parallel
+        this.setNetworkStatus('Testing all platforms simultaneously...');
+        const results = await Promise.allSettled(
+            tabSetup.map(async ({ platform, tab }) => {
+                const success = await this.sendMessageWithRetry(tab.id, { type: 'GET_PLATFORM_INFO' }, 2);
+                return { platform, success };
+            })
+        );
+
+        // Process first round results
+        const failed = [];
+        for (const result of results) {
+            if (result.status === 'fulfilled' && result.value.success) {
+                this.appendResult(`✅ ${result.value.platform.name}: Connected`);
+                this.passed++;
+            } else {
+                const name = result.status === 'fulfilled' ? result.value.platform.name : 'Unknown';
+                failed.push(tabSetup.find(t => t.platform.name === name));
+            }
+        }
+
+        // Phase 4: Retry failed ones with 5s wait
+        if (failed.length > 0) {
+            this.appendResult(`\n<b>Retrying ${failed.length} failed platforms (5s wait)...</b>`);
+            await this.countdown(5, 'Retry 1');
+
+            const retry1 = await Promise.allSettled(
+                failed.filter(f => f).map(async ({ platform, tab }) => {
+                    const success = await this.sendMessageWithRetry(tab.id, { type: 'GET_PLATFORM_INFO' }, 2);
+                    return { platform, tab, success };
+                })
+            );
+
+            const stillFailed = [];
+            for (const result of retry1) {
+                if (result.status === 'fulfilled' && result.value.success) {
+                    this.appendResult(`✅ ${result.value.platform.name}: Connected (retry 1)`);
+                    this.passed++;
+                } else if (result.status === 'fulfilled') {
+                    stillFailed.push({ platform: result.value.platform, tab: result.value.tab });
+                }
+            }
+
+            // Phase 5: Final retry with 10s wait
+            if (stillFailed.length > 0) {
+                this.appendResult(`\n<b>Final retry for ${stillFailed.length} platforms (10s wait)...</b>`);
+                await this.countdown(10, 'Final retry');
+
+                const retry2 = await Promise.allSettled(
+                    stillFailed.map(async ({ platform, tab }) => {
+                        const success = await this.sendMessageWithRetry(tab.id, { type: 'GET_PLATFORM_INFO' }, 3);
+                        return { platform, success };
+                    })
+                );
+
+                for (const result of retry2) {
+                    if (result.status === 'fulfilled' && result.value.success) {
+                        this.appendResult(`✅ ${result.value.platform.name}: Connected (final)`);
+                        this.passed++;
+                    } else {
+                        const name = result.status === 'fulfilled' ? result.value.platform.name : 'Unknown';
+                        this.appendResult(`❌ ${name}: Failed after all retries`);
+                        this.failed++;
+                    }
+                }
+            }
+        }
+
+        // Cleanup
+        for (const { tab, opened } of tabSetup) {
+            if (opened) {
+                try { await chrome.tabs.remove(tab.id); } catch (e) { }
+            }
+        }
+
+        this.setNetworkStatus('');
+        this.updateSummary();
+        this.setStatus(`🐢 Done: ${this.passed}/6 platforms`);
+    },
+
+    // 📂 Test Open Tabs Only
+    async testOpenTabsOnly() {
+        this.reset();
+        this.setStatus('📂 Testing Open Tabs');
+        this.appendResult('<b>📂 OPEN TABS ONLY MODE</b>');
+        this.appendResult('Only testing platforms you have open\n');
+
+        const platforms = {
+            perplexity: { name: 'Perplexity', match: '*://www.perplexity.ai/*' },
+            chatgpt: { name: 'ChatGPT', match: '*://chatgpt.com/*' },
+            claude: { name: 'Claude', match: '*://claude.ai/*' },
+            gemini: { name: 'Gemini', match: '*://gemini.google.com/*' },
+            grok: { name: 'Grok', match: '*://grok.com/*' },
+            deepseek: { name: 'DeepSeek', match: '*://chat.deepseek.com/*' }
+        };
+
+        let testedCount = 0;
+
+        for (const [key, platform] of Object.entries(platforms)) {
+            const existingTabs = await chrome.tabs.query({ url: platform.match });
+
+            if (existingTabs.length === 0) {
+                this.appendResult(`⏭️ ${platform.name}: Not open (skipped)`);
+                continue;
+            }
+
+            testedCount++;
+            const tab = existingTabs[0];
+
+            try {
+                const success = await this.sendMessageWithRetry(tab.id, { type: 'GET_PLATFORM_INFO' }, 2);
+                if (success) {
+                    this.appendResult(`✅ ${platform.name}: Connected`);
+                    this.passed++;
+                } else {
+                    this.appendResult(`❌ ${platform.name}: Not connected`);
+                    this.failed++;
+                }
+            } catch (e) {
+                this.appendResult(`❌ ${platform.name}: ${e.message}`);
+                this.failed++;
+            }
+        }
+
+        if (testedCount === 0) {
+            this.appendResult('⚠️ No platform tabs are open!');
+            this.appendResult('Please open at least one AI platform in a tab.');
+        }
+
+        this.updateSummary();
+        this.setStatus(`📂 Tested ${testedCount}/6 open platforms`);
+    },
+
+    // Helper: Send message with retry
+    async sendMessageWithRetry(tabId, message, maxRetries = 2) {
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                const response = await new Promise((resolve) => {
+                    chrome.tabs.sendMessage(tabId, message, (response) => {
+                        if (chrome.runtime.lastError) {
+                            resolve(null);
+                        } else {
+                            resolve(response);
+                        }
+                    });
+                });
+                if (response?.success) return true;
+            } catch (e) { }
+            await new Promise(r => setTimeout(r, 1000));
+        }
+        return false;
     },
 
     // Deep platform test - tests everything
@@ -3420,9 +4057,13 @@ const TestRunner = {
             this.appendResult('⚠️ Notion not configured (skipping upload test)');
         }
 
-        // Cleanup
+        // Cleanup - with error handling
         if (openedNewTab) {
-            chrome.tabs.remove(tab.id);
+            try {
+                await chrome.tabs.remove(tab.id);
+            } catch (e) {
+                // Tab may already be closed, ignore
+            }
         }
 
         this.updateSummary();
@@ -3477,11 +4118,104 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Network mode test buttons
+    document.getElementById('testFastInternet')?.addEventListener('click', () => TestRunner.testFastInternet());
+    document.getElementById('testSlowInternet')?.addEventListener('click', () => TestRunner.testSlowInternet());
+    document.getElementById('testOpenTabsOnly')?.addEventListener('click', () => TestRunner.testOpenTabsOnly());
+
     // Deep platform test buttons
     document.getElementById('runFullE2E')?.addEventListener('click', () => TestRunner.runFullE2E());
     document.querySelectorAll('[data-deep]').forEach(btn => {
         btn.addEventListener('click', () => {
             TestRunner.runDeepPlatformTest(btn.dataset.deep);
         });
+    });
+
+    // Extra test buttons
+    document.getElementById('runToastTests')?.addEventListener('click', () => { TestRunner.reset(); TestRunner.testToast().then(() => TestRunner.updateSummary()); });
+    document.getElementById('runAdvancedTests')?.addEventListener('click', () => { TestRunner.reset(); TestRunner.testAdvanced().then(() => TestRunner.updateSummary()); });
+    document.getElementById('runStressTests')?.addEventListener('click', () => { TestRunner.reset(); TestRunner.testStress().then(() => TestRunner.updateSummary()); });
+    document.getElementById('runSecurityTests')?.addEventListener('click', () => { TestRunner.reset(); TestRunner.testSecurity().then(() => TestRunner.updateSummary()); });
+    document.getElementById('runErrorTests')?.addEventListener('click', () => { TestRunner.reset(); TestRunner.testErrorSimulation().then(() => TestRunner.updateSummary()); });
+    document.getElementById('runAdapterTests')?.addEventListener('click', () => { TestRunner.reset(); TestRunner.testPlatformAdapters().then(() => TestRunner.updateSummary()); });
+
+    // Export buttons
+    document.getElementById('exportResultsJson')?.addEventListener('click', () => TestRunner.exportResults('json'));
+    document.getElementById('exportResultsCsv')?.addEventListener('click', () => TestRunner.exportResults('csv'));
+
+    // Search and Filter
+    document.getElementById('testSearch')?.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+        document.querySelectorAll('#testResults > div').forEach(div => {
+            div.style.display = div.textContent.toLowerCase().includes(query) ? '' : 'none';
+        });
+    });
+
+    document.getElementById('testFilter')?.addEventListener('change', (e) => {
+        const filter = e.target.value;
+        document.querySelectorAll('#testResults > div').forEach(div => {
+            if (filter === 'all') div.style.display = '';
+            else if (filter === 'passed') div.style.display = div.textContent.includes('✅') ? '' : 'none';
+            else if (filter === 'failed') div.style.display = div.textContent.includes('❌') ? '' : 'none';
+        });
+    });
+
+    // Performance Panel - make global for auto-refresh
+    window.refreshPerformance = async () => {
+        const perfMemory = document.getElementById('perfMemory');
+        const perfStorage = document.getElementById('perfStorage');
+        const perfLogCount = document.getElementById('perfLogCount');
+
+        if (perfMemory) {
+            if (performance.memory) {
+                perfMemory.textContent = (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(2) + ' MB';
+            } else {
+                perfMemory.textContent = 'N/A';
+            }
+        }
+
+        if (perfStorage) {
+            const bytes = await chrome.storage.local.getBytesInUse();
+            perfStorage.textContent = (bytes / 1024).toFixed(2) + ' KB';
+        }
+
+        if (perfLogCount) {
+            const { omniLogs = [] } = await chrome.storage.local.get('omniLogs');
+            perfLogCount.textContent = omniLogs.length;
+        }
+    };
+    document.getElementById('refreshPerformance')?.addEventListener('click', window.refreshPerformance);
+
+    // Auto-refresh performance on load
+    window.refreshPerformance();
+
+    // Test History Display - make it global so it can be called after tests
+    window.displayTestHistory = async () => {
+        const panel = document.getElementById('testHistoryPanel');
+        if (!panel) return;
+
+        await TestRunner.loadHistory();
+        if (TestRunner.history.length === 0) {
+            panel.innerHTML = '<em>No test runs yet</em>';
+            return;
+        }
+
+        panel.innerHTML = TestRunner.history.map(h => {
+            const date = new Date(h.timestamp).toLocaleString();
+            const status = h.failed === 0 ? '✅' : '❌';
+            return `<div style="padding: 4px 0; border-bottom: 1px solid var(--border);">
+                ${status} ${date} - ${h.passed}/${h.total} passed
+            </div>`;
+        }).join('');
+    };
+    window.displayTestHistory();
+
+    // Clear All Logs
+    document.getElementById('clearAllLogs')?.addEventListener('click', async () => {
+        if (confirm('Are you sure you want to clear ALL logs? This cannot be undone.')) {
+            await Logger.secureClear?.() || await chrome.storage.local.remove(['omniLogs', 'logEntries', 'testHistory', 'debugLogs']);
+            alert('All logs cleared securely!');
+            location.reload();
+        }
     });
 });

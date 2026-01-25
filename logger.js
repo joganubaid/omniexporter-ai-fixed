@@ -88,8 +88,11 @@ const Logger = {
 
     /**
      * Update logger settings
+     * SECURITY: Auto-clears logs when debug mode is disabled
      */
     async updateSettings(settings) {
+        const wasEnabled = this.config.enabled;
+
         if (settings.debugMode !== undefined) {
             this.config.enabled = settings.debugMode;
         }
@@ -105,6 +108,37 @@ const Logger = {
             logMaxEntries: this.config.maxEntries,
             logConsoleOutput: this.config.consoleOutput
         });
+
+        // SECURITY: Auto-clear logs when debug mode is disabled
+        if (wasEnabled && !this.config.enabled) {
+            console.log('[Logger] Debug mode disabled - clearing all logs for security');
+            await this.secureClear();
+        }
+    },
+
+    /**
+     * Secure clear - removes ALL log-related data
+     * Called when: debug mode is disabled, on session end, manual clear
+     */
+    async secureClear() {
+        // Clear in-memory buffer
+        this._buffer = [];
+
+        // Clear all log-related storage
+        await chrome.storage.local.remove([
+            'omniLogs',
+            'logEntries',
+            'testHistory',
+            'debugLogs'
+        ]);
+
+        // Force garbage collection hint
+        if (typeof globalThis.gc === 'function') {
+            globalThis.gc();
+        }
+
+        console.log('[Logger] All logs securely cleared');
+        return true;
     },
 
     /**
